@@ -1,8 +1,9 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import { LoginForm } from "@/components/login-form"
 
+import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   Bell,
@@ -10,7 +11,7 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-} from "lucide-react"
+} from "lucide-react";
 
 // import {
 //   Avatar,
@@ -25,18 +26,52 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { useState } from "react";
 
-export function NavUser({
-  user
-}) {
-  const { isMobile } = useSidebar()
+export function NavUser() {
+  const router = useRouter();
+  const { isMobile } = useSidebar();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+
+  const handleRegisterClick = () => {
+    router.push("/register");
+  };
+
+  const handleLoginClick = () => {
+    router.push("/login");
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsLoggedIn(false);
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex gap-4 p-4">
+        <button
+          onClick={handleRegisterClick}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          註冊
+        </button>
+        <button
+          onClick={handleLoginClick}
+          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+        >
+          登入
+        </button>
+      </div>
+    );
+  }
 
   const [isOverlayOpen, setIsOverlayOpen] = useState(false); // State to control overlay visibility
 
