@@ -37,7 +37,7 @@ export default function Layout({ children }) {
         <SidebarProvider>
           <AppSidebar />
           <main>
-            <SidebarTrigger />
+            {/* <SidebarTrigger /> */}
             {children}
           </main>
         </SidebarProvider>
