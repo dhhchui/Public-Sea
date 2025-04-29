@@ -7,7 +7,7 @@ import {
   Cpu,
   ShipWheel,
   Search,
-  GalleryVerticalEnd,
+  MessageSquareText,
   UsersRound,
   UserRound,
   Piano,
@@ -17,7 +17,7 @@ import {
 import { NavMain } from '@/components/nav-main';
 import { NavProjects } from '@/components/nav-projects';
 import { NavUser } from '@/components/nav-user';
-import { TeamSwitcher } from '@/components/team-switcher';
+// import { TeamSwitcher } from '@/components/team-switcher';
 import {
   Sidebar,
   SidebarContent,
@@ -27,7 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarInput,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 
 // This is sample data.
@@ -35,7 +35,7 @@ const data = {
   user: {
     name: 'shadcn',
     email: 'm@example.com',
-    avatar: '/avatars/shadcn.jpg',
+    // avatar: '/avatars/shadcn.jpg',
   },
   // teams: [
   //   {
@@ -210,10 +210,14 @@ export function AppSidebar({ ...props }) {
           <Search />
           <span>搜尋</span>
         </SidebarMenuButton>
+        <SidebarMenuButton tooltip='對話'>
+          <MessageSquareText />
+          <span>對話</span>
+        </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
