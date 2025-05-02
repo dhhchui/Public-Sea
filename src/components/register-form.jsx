@@ -185,11 +185,35 @@ export function RegisterForm({
                         Forgot your password?
                       </a> */}
                     </div>
-                    <Input id="password" type="password" required />
+                    <Input id="password" type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength={6}
+                      placeholder="至少6個字符" />
                   </div>
+
+                  {message.text && (
+                    <div
+                      className={`p-3 rounded ${message.type === "error"
+                          ? "bg-red-100 text-red-700"
+                          : message.type === "success"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                    >
+                      {message.text}
+                    </div>
+                  )}
+
                   <div className="flex flex-col gap-3">
-                    <Button type="submit" className="w-full">
-                      註冊
+                    <Button type="submit"
+                      disabled={isSubmitting}
+                      className={`w-full ${isSubmitting
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : ""}`}>
+                      {isSubmitting ? "註冊中..." : "註冊"}
                     </Button>
                     {/* <Button variant="outline" className="w-full">
                   Login with Google

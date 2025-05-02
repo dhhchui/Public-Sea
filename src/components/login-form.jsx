@@ -93,12 +93,11 @@ export function LoginForm({
               <form>
                 <div onSubmit={handleSubmit} className="flex flex-col gap-6">
                   <div className="grid gap-3">
-                    <Label htmlFor="email">電郵地址</Label>
-                    <Input id="email" type="email"
+                    <Label htmlFor="email">電郵地址 或 用戶名稱</Label>
+                    <Input type="text"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      placeholder="m@example.com"
                       required />
                   </div>
                   <div className="grid gap-3">
@@ -115,8 +114,6 @@ export function LoginForm({
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      minLength={6}
-                      placeholder="至少6個字符"
                     />
                   </div>
 
