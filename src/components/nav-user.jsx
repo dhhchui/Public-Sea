@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Backdrop } from "@/components/backdrop";
+import { RegisterForm } from "@/components/register-form"
 import { LoginForm } from "@/components/login-form"
 
 import { useRouter } from "next/navigation";
@@ -9,8 +11,10 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
+  LogIn,
   LogOut,
   Sparkles,
+  UserRoundPlus,
 } from "lucide-react";
 
 // import {
@@ -33,7 +37,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useState } from "react";
 
 export function NavUser() {
   const router = useRouter();
@@ -54,57 +57,131 @@ export function NavUser() {
     setIsLoggedIn(false);
   };
 
-  if (!isLoggedIn) {
-    return (
-      <div className="flex gap-4 p-4">
-        <button
-          onClick={handleRegisterClick}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          註冊
-        </button>
-        <button
-          onClick={handleLoginClick}
-          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-        >
-          登入
-        </button>
-      </div>
-    );
-  }
+  const [isRegisterOverlayOpen, setIsRegisterOverlayOpen] = useState(false); // State to control overlay visibility
 
-  const [isOverlayOpen, setIsOverlayOpen] = useState(false); // State to control overlay visibility
-
-  const toggleOverlay = () => {
-    setIsOverlayOpen(!isOverlayOpen);
+  const toggleRegisterOverlay = () => {
+    setIsRegisterOverlayOpen(!isRegisterOverlayOpen);
   };
 
-  return (
-    <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                {/* <Avatar className="h-8 w-8 rounded-lg">
+  const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false); // State to control overlay visibility
+
+  const toggleLoginOverlay = () => {
+    setIsLoginOverlayOpen(!isLoginOverlayOpen);
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <>
+        {/* <div className="flex gap-4 p-4">
+          <button
+            onClick={handleRegisterClick}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            註冊
+          </button>
+          <button
+            onClick={handleLoginClick}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            登入
+          </button>
+        </div> */}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">訪客</span>
+                    <span className="truncate text-xs">尚未登入</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side={isMobile ? "bottom" : "right"}
+                align="end"
+                sideOffset={4}>
+                {/* <DropdownMenuGroup>
+                      <DropdownMenuItem>
+                        <Sparkles />
+                        Upgrade to Pro
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator /> */}
+                <DropdownMenuGroup>
+                  {/* <DropdownMenuItem>
+                        <BadgeCheck />
+                        Account
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <CreditCard />
+                        Billing
+                      </DropdownMenuItem> */}
+                  <DropdownMenuItem onClick={toggleRegisterOverlay}>
+                    <UserRoundPlus />
+                    註冊
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={toggleLoginOverlay}>
+                  <LogIn />
+                  登入
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        {/* Overlay Login Form */}
+        {isRegisterOverlayOpen && (
+          <>
+            <Backdrop onClick={toggleRegisterOverlay} />
+              <RegisterForm />
+          </>
+        )}
+
+        {/* Overlay Login Form */}
+        {isLoginOverlayOpen && (
+          <>
+            <Backdrop onClick={toggleLoginOverlay} />
+            <LoginForm />
+          </>
+        )
+        }
+      </>
+    );
+  } else {
+
+    return (
+      <>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                  {/* <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar> */}
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
-                </div>
-                <ChevronsUpDown className="ml-auto size-4" />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-              side={isMobile ? "bottom" : "right"}
-              align="end"
-              sideOffset={4}>
-              {/* <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs">{user.email}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side={isMobile ? "bottom" : "right"}
+                align="end"
+                sideOffset={4}>
+                {/* <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage src={user.avatar} alt={user.name} />
@@ -117,47 +194,45 @@ export function NavUser() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator /> */}
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Sparkles />
-                  Upgrade to Pro
+                {/* <DropdownMenuGroup>
+                  <DropdownMenuItem>
+                    <Sparkles />
+                    Upgrade to Pro
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator /> */}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem>
+                    <BadgeCheck />
+                    帳號
+                  </DropdownMenuItem>
+                  {/* <DropdownMenuItem>
+                    <CreditCard />
+                    Billing
+                  </DropdownMenuItem> */}
+                  <DropdownMenuItem>
+                    <Bell />
+                    通知
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={toggleLoginOverlay}>
+                  <LogOut />
+                  登出
                 </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <BadgeCheck />
-                  Account
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <CreditCard />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Bell />
-                  Notifications
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={toggleOverlay}>
-                <LogOut />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
 
-      {/* Overlay Login Form */}
-      {isOverlayOpen && (
-        <>
-          <div className="fixed top-0 left-0 w-full h-full bg-[rgba(0,0,0,0.5)] z-[1000]" onClick={toggleOverlay}>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm">
+        {/* Overlay Login Form */}
+        {isLoginOverlayOpen && (
+          <>
+            <Backdrop onClick={toggleLoginOverlay} />
               <LoginForm />
-            </div>
-          </div>
-        </>
-      )}
-    </>
-  );
+          </>
+        )}
+      </>
+    );
+  }
 }

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { NavMain } from '@/components/nav-main';
-import { NavProjects } from '@/components/nav-projects';
+// import { NavProjects } from '@/components/nav-chats';
 import { NavUser } from '@/components/nav-user';
 // import { TeamSwitcher } from '@/components/team-switcher';
 import {
@@ -27,7 +27,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarInput,
 } from '@/components/ui/sidebar';
 
 // This is sample data.
@@ -69,14 +68,6 @@ const data = {
           title: "財經台",
           url: "#",
         },
-        {
-          title: "娛樂台",
-          url: "#",
-        },
-        {
-          title: "房屋台",
-          url: "#",
-        },
       ],
     },
     {
@@ -89,15 +80,7 @@ const data = {
           url: "#",
         },
         {
-          title: "電器台",
-          url: "#",
-        },
-        {
-          title: "硬件台",
-          url: "#",
-        },
-        {
-          title: "軟件台",
+          title: "電腦台",
           url: "#",
         },
       ],
@@ -107,14 +90,6 @@ const data = {
       url: "#",
       icon: CalendarDays,
       items: [
-        {
-          title: "創意台",
-          url: "#",
-        },
-        {
-          title: "感情台",
-          url: "#",
-        },
         {
           title: "飲食台",
           url: "#",
@@ -143,19 +118,11 @@ const data = {
           url: "#",
         },
         {
-          title: "學術台",
-          url: "#",
-        },
-        {
           title: "遊戲台",
           url: "#",
         },
         {
           title: "影視台",
-          url: "#",
-        },
-        {
-          title: "動漫台",
           url: "#",
         },
         {
@@ -165,7 +132,7 @@ const data = {
       ],
     },
   ],
-  projects: [
+  chats: [
     {
       name: "土瓜灣漢堡包",
       url: "#",
@@ -186,7 +153,7 @@ const data = {
 
 export function AppSidebar({ ...props }) {
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="offcanvas" {...props}>
       {/* <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader> */}

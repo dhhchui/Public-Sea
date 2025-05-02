@@ -26,7 +26,7 @@ export function NavProjects({ projects }) {
     <SidebarGroup>
       <SidebarGroupLabel>對話</SidebarGroupLabel>
       <SidebarMenu>
-        {projects.map((item) => (
+        {chats.map((item) => (
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton asChild>
               <a href={item.url}>
