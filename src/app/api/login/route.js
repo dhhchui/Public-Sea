@@ -1,47 +1,71 @@
-"use client";
+import prisma from "../../../lib/prisma";
+import * as argon2 from "argon2";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+export async function POST(request) {
+  console.log("Received POST request to /api/login");
 
-export default function Login() {
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
-  const router = useRouter();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+  let data;
+  try {
+    data = await request.json();
+    console.log("Request body:", data);
+  } catch (error) {
+    console.error("Error parsing request body:", error);
+    return new Response(JSON.stringify({ message: "Invalid request body" }), {
+      status: 400,
     });
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem("token", data.token);
-      router.push("/");
-    } else {
-      const data = await res.json();
-      alert(data.message);
-    }
-  };
+  }
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        placeholder="Username"
-        value={formData.username}
-        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={formData.password}
-        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-      />
-      <button type="submit">Login</button>
-    </form>
-  );
+  const { usernameOrEmail, password } = data;
+
+  if (!usernameOrEmail || !password) {
+    console.log("Missing required fields");
+    return new Response(
+      JSON.stringify({ message: "Missing required fields" }),
+      { status: 400 }
+    );
+  }
+
+  try {
+    console.log("Finding user in database...");
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+      },
+    });
+
+    if (!user) {
+      console.log("User not found");
+      return new Response(JSON.stringify({ message: "User not found" }), {
+        status: 404,
+      });
+    }
+
+    console.log("Verifying password...");
+    const passwordMatch = await argon2.verify(user.password, password);
+    if (!passwordMatch) {
+      console.log("Invalid password");
+      return new Response(JSON.stringify({ message: "Invalid password" }), {
+        status: 401,
+      });
+    }
+
+    console.log("User logged in successfully:", user);
+    return new Response(
+      JSON.stringify({
+        message: "Login successful",
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          nickname: user.nickname,
+        },
+      }),
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error in POST /api/login:", error);
+    return new Response(JSON.stringify({ message: "Server error" }), {
+      status: 500,
+    });
+  }
 }

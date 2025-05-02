@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int            @id @default(autoincrement())
+  username             String         @unique
+  nickname             String         @unique
+  email                String         @unique
+  password             String
+  bio                  String?
+  gender               String         @default("undisclosed")
+  hobbies              String[]       @default([])
+  followerCount        Int            @default(0)
+  followedCount        Int            @default(0)
+  followerIds          Int[]          @default([])
+  followedIds          Int[]          @default([])
+  createdAt            DateTime       @default(now())
+  comments             Comment[]      @relation("UserComments")
+  conversationsAsUser1 Conversation[] @relation("User1Conversations")
+  conversationsAsUser2 Conversation[] @relation("User2Conversations")
+  messages             Message[]
+  posts                Post[]         @relation("UserPosts")
+}
+
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  user1Id   Int
+  user2Id   Int
+  createdAt DateTime  @default(now())
+  user1     User      @relation("User1Conversations", fields: [user1Id], references: [id])
+  user2     User      @relation("User2Conversations", fields: [user2Id], references: [id])
+  messages  Message[]
+
+  @@unique([user1Id, user2Id])
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  content        String
+  senderId       Int
+  conversationId Int
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  board     String    @default("吹水台")
+  authorId  Int
+  likeCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  view      BigInt
+  comments  Comment[]
+  author    User      @relation("UserPosts", fields: [authorId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  authorId  Int
+  postId    Int
+  likeCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author    User     @relation("UserComments", fields: [authorId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@index([createdAt])
+}

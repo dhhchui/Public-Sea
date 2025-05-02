@@ -86,7 +86,7 @@ export function LoginForm({
             <CardHeader>
               <CardTitle>登入帳號</CardTitle>
               <CardDescription>
-                輸入你的電郵地址以登入帳號
+                輸入你的電郵地址或用戶名稱以登入帳號
               </CardDescription>
             </CardHeader>
             <CardContent>
