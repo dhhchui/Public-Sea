@@ -22,33 +22,43 @@ export function PostForm({ board }) {
     setMessage({ text: "發佈中...", type: "info" });
 
     try {
-      const token = localStorage.getItem("token");
+      console.log("Submitting post:", { title, content, board });
+
       const response = await fetch("/api/create-post", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          topic: title,
+          title,
           content,
           board,
+          authorId: 1, // 臨時硬編碼，實際應從 token 獲取
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({ text: "發帖成功！", type: "success" });
-        setTitle("");
-        setContent("");
-        router.refresh(); // 刷新帖子列表
-      } else {
-        setMessage({ text: data.message || "發帖失敗", type: "error" });
+      if (!response.ok) {
+        const text = await response.text();
+        console.log("Non-OK response:", response.status, text);
+        try {
+          const data = JSON.parse(text);
+          setMessage({ text: data.message || "發帖失敗", type: "error" });
+        } catch (error) {
+          setMessage({ text: `伺服器錯誤: ${response.status}`, type: "error" });
+        }
+        return;
       }
+
+      const data = await response.json();
+      console.log("Post response:", data);
+
+      setMessage({ text: "話題發布成功！", type: "success" });
+      setTitle("");
+      setContent("");
+      router.refresh();
     } catch (error) {
-      setMessage({ text: "網絡錯誤，請稍後再試", type: "error" });
       console.error("發帖錯誤:", error);
+      setMessage({ text: "網絡錯誤，請稍後再試", type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -57,7 +67,7 @@ export function PostForm({ board }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="title" className="block text-sm font-medium mb-1">
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
           標題
         </label>
         <input
@@ -65,14 +75,14 @@ export function PostForm({ board }) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-          placeholder="輸入帖子標題"
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="輸入話題標題"
           required
         />
       </div>
 
       <div>
-        <label htmlFor="content" className="block text-sm font-medium mb-1">
+        <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
           內容
         </label>
         <textarea
@@ -80,15 +90,15 @@ export function PostForm({ board }) {
           rows={5}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-          placeholder="輸入帖子內容"
+          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="輸入話題內容"
           required
         />
       </div>
 
       {message.text && (
         <div
-          className={`p-3 rounded ${
+          className={`p-3 rounded text-sm ${
             message.type === "error"
               ? "bg-red-100 text-red-700"
               : message.type === "success"
@@ -103,13 +113,13 @@ export function PostForm({ board }) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className={`px-4 py-2 rounded text-white ${
+        className={`w-full py-2 px-4 rounded text-white font-medium ${
           isSubmitting
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-blue-500 hover:bg-blue-600"
+            : "bg-blue-600 hover:bg-blue-700"
         }`}
       >
-        {isSubmitting ? "發佈中..." : "發佈帖子"}
+        {isSubmitting ? "發佈中..." : "發布話題"}
       </button>
     </form>
   );

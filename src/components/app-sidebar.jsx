@@ -5,7 +5,7 @@ import { ShipWheel, Search, MessageSquareText } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
-import { data } from "@/components/boards-data"; // 修正后的路径
+import { navMain } from "@/lib/boards";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +24,7 @@ export function AppSidebar({ ...props }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href="#">
+              <a href="/">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <ShipWheel className="size-4" />
                 </div>
@@ -46,10 +46,10 @@ export function AppSidebar({ ...props }) {
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

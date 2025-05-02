@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import {
   Collapsible,
@@ -19,6 +20,17 @@ import {
 } from "@/components/ui/sidebar";
 
 export function NavMain({ items }) {
+  const router = useRouter();
+
+  // 點擊分類，跳轉到第一個子分台
+  const handleCategoryClick = (item) => {
+    if (item.items && item.items.length > 0) {
+      router.push(item.items[0].url);
+    } else {
+      router.push(item.url);
+    }
+  };
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>討論</SidebarGroupLabel>
@@ -34,7 +46,8 @@ export function NavMain({ items }) {
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   tooltip={item.title}
-                  onClick={item.onClick} // 添加 onClick 事件
+                  onClick={() => handleCategoryClick(item)}
+                  className="cursor-pointer"
                 >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
