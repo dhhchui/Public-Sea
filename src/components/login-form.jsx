@@ -1,31 +1,25 @@
 "use client";
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RegisterForm } from "./register-form";
-// import Link from "next/link";
 
-export function LoginForm({
-  className,
-  ...props
-}) {
+export function LoginForm({ className, ...props }) {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    email: "",
+    usernameOrEmail: "",
     password: "",
   });
-
   const [message, setMessage] = useState({ text: "", type: "" });
 
   const handleChange = (e) => {
@@ -38,7 +32,6 @@ export function LoginForm({
     setMessage({ text: "登入中...", type: "info" });
 
     try {
-      // 這裡應該替換為實際的登入API
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
@@ -47,16 +40,22 @@ export function LoginForm({
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setMessage({
           text: "登入成功！即將跳轉...",
           type: "success",
         });
-        // 登入成功後跳轉
+        // 觸發自定義事件以通知 nav-user.jsx 更新用戶狀態
+        const userLoggedInEvent = new CustomEvent("userLoggedIn", {
+          detail: data.user,
+        });
+        window.dispatchEvent(userLoggedInEvent);
         setTimeout(() => router.push("/"), 1500);
       } else {
         setMessage({
-          text: "電子郵件或密碼錯誤",
+          text: data.message || "電子郵件或密碼錯誤",
           type: "error",
         });
       }
@@ -68,11 +67,7 @@ export function LoginForm({
     }
   };
 
-  // const handleCancel = () => {
-  //   router.push("/");
-  // };
-
-  const [isRegisterFormOpen, setIsRegisterFormOpen] = useState(false); // State to control form visibility
+  const [isRegisterFormOpen, setIsRegisterFormOpen] = useState(false);
 
   const switchToRegisterForm = () => {
     setIsRegisterFormOpen(!isRegisterFormOpen);
@@ -90,26 +85,27 @@ export function LoginForm({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form>
-                <div onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <form onSubmit={handleSubmit}>
+                <div className="flex flex-col gap-6">
                   <div className="grid gap-3">
-                    <Label htmlFor="email">電郵地址 或 用戶名稱</Label>
-                    <Input type="text"
-                      name="email"
-                      value={formData.email}
+                    <Label htmlFor="usernameOrEmail">
+                      電郵地址 或 用戶名稱
+                    </Label>
+                    <Input
+                      type="text"
+                      name="usernameOrEmail"
+                      value={formData.usernameOrEmail}
                       onChange={handleChange}
-                      required />
+                      required
+                    />
                   </div>
                   <div className="grid gap-3">
                     <div className="flex items-center">
                       <Label htmlFor="password">密碼</Label>
-                      {/* <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
-                    Forgot your password?
-                  </a> */}
                     </div>
-                    <Input id="password" type="password"
+                    <Input
+                      id="password"
+                      type="password"
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
@@ -119,12 +115,13 @@ export function LoginForm({
 
                   {message.text && (
                     <div
-                      className={`p-3 rounded ${message.type === "error"
-                        ? "bg-red-100 text-red-700"
-                        : message.type === "success"
+                      className={`p-3 rounded ${
+                        message.type === "error"
+                          ? "bg-red-100 text-red-700"
+                          : message.type === "success"
                           ? "bg-green-100 text-green-700"
                           : "bg-blue-100 text-blue-700"
-                        }`}
+                      }`}
                     >
                       {message.text}
                     </div>
@@ -134,14 +131,14 @@ export function LoginForm({
                     <Button type="submit" className="w-full">
                       登入
                     </Button>
-                    {/* <Button variant="outline" className="w-full">
-                  Login with Google
-                </Button> */}
                   </div>
                 </div>
                 <div className="mt-4 text-center text-sm">
                   沒有帳號？{" "}
-                  <a onClick={switchToRegisterForm} className="underline underline-offset-4 cursor-pointer">
+                  <a
+                    onClick={switchToRegisterForm}
+                    className="underline underline-offset-4 cursor-pointer"
+                  >
                     註冊
                   </a>
                 </div>
@@ -152,8 +149,6 @@ export function LoginForm({
       </div>
     );
   } else {
-    return (
-      <RegisterForm />
-    );
+    return <RegisterForm />;
   }
 }

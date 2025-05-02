@@ -1,23 +1,11 @@
 "use client";
 
 import * as React from "react";
-import {
-  AudioWaveform,
-  CalendarDays,
-  Cpu,
-  ShipWheel,
-  Search,
-  MessageSquareText,
-  UsersRound,
-  UserRound,
-  Piano,
-  Newspaper,
-} from "lucide-react";
+import { ShipWheel, Search, MessageSquareText } from "lucide-react";
 
-import { NavMain } from '@/components/nav-main';
-// import { NavProjects } from '@/components/nav-chats';
-import { NavUser } from '@/components/nav-user';
-// import { TeamSwitcher } from '@/components/team-switcher';
+import { NavMain } from "@/components/nav-main";
+import { NavUser } from "@/components/nav-user";
+import { data } from "@/components/boards-data"; // 修正后的路径
 import {
   Sidebar,
   SidebarContent,
@@ -27,136 +15,11 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from '@/components/ui/sidebar';
-
-// This is sample data.
-const data = {
-  user: {
-    name: 'shadcn',
-    email: 'm@example.com',
-    // avatar: '/avatars/shadcn.jpg',
-  },
-  // teams: [
-  //   {
-  //     name: "Acme Inc",
-  //     logo: GalleryVerticalEnd,
-  //     plan: "Enterprise",
-  //   },
-  //   {
-  //     name: "Acme Corp.",
-  //     logo: AudioWaveform,
-  //     plan: "Startup",
-  //   },
-  //   {
-  //     name: "Evil Corp.",
-  //     logo: Command,
-  //     plan: "Free",
-  //   },
-  // ],
-  navMain: [
-    {
-      title: "新聞",
-      url: "#",
-      icon: Newspaper,
-      isActive: true,
-      items: [
-        {
-          title: "時事台",
-          url: "#",
-        },
-        {
-          title: "財經台",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "科技",
-      url: "#",
-      icon: Cpu,
-      items: [
-        {
-          title: "手機台",
-          url: "#",
-        },
-        {
-          title: "電腦台",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "生活",
-      url: "#",
-      icon: CalendarDays,
-      items: [
-        {
-          title: "飲食台",
-          url: "#",
-        },
-        {
-          title: "上班台",
-          url: "#",
-        },
-        {
-          title: "旅遊台",
-          url: "#",
-        },
-        {
-          title: "校園台",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "興趣",
-      url: "#",
-      icon: Piano,
-      items: [
-        {
-          title: "體育台",
-          url: "#",
-        },
-        {
-          title: "遊戲台",
-          url: "#",
-        },
-        {
-          title: "影視台",
-          url: "#",
-        },
-        {
-          title: "音樂台",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  chats: [
-    {
-      name: "土瓜灣漢堡包",
-      url: "#",
-      icon: UserRound,
-    },
-    {
-      name: "深水埗糯米雞",
-      url: "#",
-      icon: UserRound,
-    },
-    {
-      name: "跳舞群組",
-      url: "#",
-      icon: UsersRound,
-    },
-  ],
-};
+} from "@/components/ui/sidebar";
 
 export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
-      {/* <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
-      </SidebarHeader> */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -177,14 +40,13 @@ export function AppSidebar({ ...props }) {
           <Search />
           <span>搜尋</span>
         </SidebarMenuButton>
-        <SidebarMenuButton tooltip='對話'>
+        <SidebarMenuButton tooltip="對話">
           <MessageSquareText />
           <span>對話</span>
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

@@ -4,29 +4,31 @@ import * as argon2 from "argon2";
 export async function POST(request) {
   console.log("Received POST request to /api/login");
 
+  // 檢查請求體
   let data;
   try {
     data = await request.json();
     console.log("Request body:", data);
   } catch (error) {
     console.error("Error parsing request body:", error);
-    return new Response(JSON.stringify({ message: "Invalid request body" }), {
+    return new Response(JSON.stringify({ message: "無效的請求體" }), {
       status: 400,
     });
   }
 
   const { usernameOrEmail, password } = data;
 
+  // 驗證必要字段
   if (!usernameOrEmail || !password) {
-    console.log("Missing required fields");
+    console.log("缺少必要字段");
     return new Response(
-      JSON.stringify({ message: "Missing required fields" }),
+      JSON.stringify({ message: "缺少用戶名/電子郵件或密碼" }),
       { status: 400 }
     );
   }
 
   try {
-    console.log("Finding user in database...");
+    console.log("正在查找用戶...");
     const user = await prisma.user.findFirst({
       where: {
         OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
@@ -34,25 +36,25 @@ export async function POST(request) {
     });
 
     if (!user) {
-      console.log("User not found");
-      return new Response(JSON.stringify({ message: "User not found" }), {
+      console.log("用戶不存在");
+      return new Response(JSON.stringify({ message: "用戶不存在" }), {
         status: 404,
       });
     }
 
-    console.log("Verifying password...");
+    console.log("正在驗證密碼...");
     const passwordMatch = await argon2.verify(user.password, password);
     if (!passwordMatch) {
-      console.log("Invalid password");
-      return new Response(JSON.stringify({ message: "Invalid password" }), {
+      console.log("密碼錯誤");
+      return new Response(JSON.stringify({ message: "密碼錯誤" }), {
         status: 401,
       });
     }
 
-    console.log("User logged in successfully:", user);
+    console.log("用戶登入成功:", user);
     return new Response(
       JSON.stringify({
-        message: "Login successful",
+        message: "登入成功",
         user: {
           id: user.id,
           username: user.username,
@@ -63,8 +65,8 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in POST /api/login:", error);
-    return new Response(JSON.stringify({ message: "Server error" }), {
+    console.error("POST /api/login 錯誤:", error);
+    return new Response(JSON.stringify({ message: "伺服器錯誤" }), {
       status: 500,
     });
   }

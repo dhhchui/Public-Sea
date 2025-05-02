@@ -1,15 +1,4 @@
 "use client";
-import { LoginForm } from "@/components/login-form"
-
-// export default function Page() {
-//   return (
-//     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-//       <div className="w-full max-w-sm">
-//         <LoginForm />
-//       </div>
-//     </div>
-//   );
-// }
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,23 +7,42 @@ import Link from "next/link";
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    email: "",
+    usernameOrEmail: "",
     password: "",
   });
-
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
+  const validateForm = () => {
+    if (!formData.usernameOrEmail.trim()) {
+      setMessage({ text: "請輸入用戶名或電子郵件", type: "error" });
+      return false;
+    }
+    if (!formData.password) {
+      setMessage({ text: "請輸入密碼", type: "error" });
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setMessage({ text: "密碼至少需要6個字符", type: "error" });
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
     setMessage({ text: "登入中...", type: "info" });
 
     try {
-      // 這裡應該替換為實際的登入API
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
@@ -43,16 +51,17 @@ export default function LoginPage() {
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setMessage({
-          text: "登入成功！即將跳轉...",
+          text: "登入成功！即將跳轉至首頁...",
           type: "success",
         });
-        // 登入成功後跳轉
-        setTimeout(() => router.push("/"), 1500);
+        setTimeout(() => router.push("/"), 3000);
       } else {
         setMessage({
-          text: "電子郵件或密碼錯誤",
+          text: data.message || "登入失敗，請檢查您的輸入",
           type: "error",
         });
       }
@@ -61,6 +70,9 @@ export default function LoginPage() {
         text: "網絡錯誤，請稍後再試",
         type: "error",
       });
+      console.error("登入錯誤:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -73,14 +85,17 @@ export default function LoginPage() {
       <h1 className="text-2xl font-bold text-center mb-6">登入帳號</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">電子郵件*</label>
+          <label className="block text-sm font-medium mb-1">
+            用戶名或電子郵件*
+          </label>
           <input
-            type="email"
-            name="email"
-            value={formData.email}
+            type="text"
+            name="usernameOrEmail"
+            value={formData.usernameOrEmail}
             onChange={handleChange}
             required
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="用戶名或電子郵件"
           />
         </div>
 
@@ -92,21 +107,28 @@ export default function LoginPage() {
             value={formData.password}
             onChange={handleChange}
             required
-            className="w-full p-2 border rounded"
+            minLength={6}
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="至少6個字符"
           />
         </div>
 
         <div className="flex space-x-4">
           <button
             type="submit"
-            className="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-colors"
+            disabled={isSubmitting}
+            className={`flex-1 py-2 rounded transition-colors ${
+              isSubmitting
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-500 hover:bg-blue-600 text-white"
+            }`}
           >
-            登入
+            {isSubmitting ? "登入中..." : "登入"}
           </button>
           <button
             type="button"
             onClick={handleCancel}
-            className="flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors"
+            className="flex-1 py-2 rounded bg-gray-500 hover:bg-gray-600 text-white transition-colors"
           >
             取消
           </button>
@@ -128,7 +150,10 @@ export default function LoginPage() {
 
         <div className="text-center text-sm mt-4">
           還沒有帳號？{" "}
-          <Link href="/register" className="text-blue-500 hover:underline">
+          <Link
+            href="/register"
+            className="text-blue-500 hover:underline font-medium"
+          >
             立即註冊
           </Link>
         </div>
