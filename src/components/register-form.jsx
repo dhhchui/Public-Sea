@@ -33,8 +33,6 @@ export function RegisterForm({
     username: "",
     email: "",
     password: "",
-    firstname: "",
-    lastname: "",
     nickname: "",
     gender: "undisclosed",
   });
@@ -135,7 +133,12 @@ export function RegisterForm({
                 <div className="flex flex-col gap-6">
                   <div className="grid gap-3">
                     <Label htmlFor="email">電郵地址</Label>
-                    <Input id="email" type="email" placeholder="m@example.com" required />
+                    <Input id="email" type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="example@example.com"
+                      required />
                   </div>
                   <div className="grid gap-3">
                     <Label htmlFor="username">用戶名稱</Label>
@@ -197,10 +200,10 @@ export function RegisterForm({
                   {message.text && (
                     <div
                       className={`p-3 rounded ${message.type === "error"
-                          ? "bg-red-100 text-red-700"
-                          : message.type === "success"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
+                        ? "bg-red-100 text-red-700"
+                        : message.type === "success"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-blue-100 text-blue-700"
                         }`}
                     >
                       {message.text}
