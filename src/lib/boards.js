@@ -8,7 +8,7 @@ import {
 export const navMain = [
   {
     title: "新聞",
-    url: "/boards/current-affairs",
+    //url: "/boards/current-affairs",
     icon: Newspaper,
     isActive: true,
     items: [
@@ -20,7 +20,7 @@ export const navMain = [
   },
   {
     title: "科技",
-    url: "/boards/mobile",
+    //url: "/boards/mobile",
     icon: Cpu,
     items: [
       { title: "手機台", url: "/boards/mobile", slug: "mobile" },
@@ -31,7 +31,7 @@ export const navMain = [
   },
   {
     title: "生活",
-    url: "/boards/creativity",
+    //url: "/boards/creativity",
     icon: CalendarDays,
     items: [
       { title: "創意台", url: "/boards/creativity", slug: "creativity" },
@@ -44,7 +44,7 @@ export const navMain = [
   },
   {
     title: "興趣",
-    url: "/boards/sports",
+    //url: "/boards/sports",
     icon: Piano,
     items: [
       { title: "體育台", url: "/boards/sports", slug: "sports" },
