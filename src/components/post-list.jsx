@@ -86,7 +86,6 @@ export function PostList({ board }) {
               <p className="text-sm text-gray-500 mt-1">
                 作者: {post.author?.username || "匿名"} • 瀏覽: {post.view} • 讚: {post.likeCount}
               </p>
-              <p className="mt-1 line-clamp-3 text-gray-700">{post.content}</p>
             </Link>
           </div>
         ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { allBoards } from "@/components/boards-data"; // 引入所有分台
 
@@ -13,6 +13,15 @@ export default function CreatePostPage() {
   });
   const [message, setMessage] = useState({ text: "", type: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // 從 localStorage 獲取當前用戶
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,6 +30,14 @@ export default function CreatePostPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 檢查是否登入
+    if (!currentUser) {
+      setMessage({ text: "請先登入以發布話題", type: "error" });
+      setTimeout(() => router.push("/login"), 1500);
+      return;
+    }
+
     setIsSubmitting(true);
     setMessage({ text: "發帖中...", type: "info" });
 
@@ -38,7 +55,12 @@ export default function CreatePostPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          title: formData.topic,
+          content: formData.content,
+          board: formData.board,
+          authorId: currentUser.id, // 使用當前用戶的 ID
+        }),
       });
 
       const data = await response.json();

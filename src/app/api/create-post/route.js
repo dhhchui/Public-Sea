@@ -36,13 +36,25 @@ export async function POST(request) {
       });
     }
 
+    // 驗證用戶是否存在
+    const userExists = await prisma.user.findUnique({
+      where: { id: parseInt(authorId) },
+    });
+
+    if (!userExists) {
+      console.log("User does not exist:", authorId);
+      return new Response(JSON.stringify({ message: "無效的用戶ID" }), {
+        status: 400,
+      });
+    }
+
     // Create post
     const post = await prisma.post.create({
       data: {
         title: title.trim(),
         content: content.trim(),
         board,
-        authorId,
+        authorId: parseInt(authorId), // 確保 authorId 是整數
         view: 0,
         likeCount: 0,
       },

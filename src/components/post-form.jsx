@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export function PostForm({ board }) {
@@ -8,10 +8,26 @@ export function PostForm({ board }) {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [currentUser, setCurrentUser] = useState(null);
   const router = useRouter();
+
+  // 從 localStorage 獲取當前用戶
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 檢查是否登入
+    if (!currentUser) {
+      setMessage({ text: "請先登入以發布話題", type: "error" });
+      setTimeout(() => router.push("/login"), 1500);
+      return;
+    }
 
     if (!title.trim() || !content.trim()) {
       setMessage({ text: "請填寫標題和內容", type: "error" });
@@ -22,7 +38,7 @@ export function PostForm({ board }) {
     setMessage({ text: "發佈中...", type: "info" });
 
     try {
-      console.log("Submitting post:", { title, content, board });
+      console.log("Submitting post:", { title, content, board, authorId: currentUser.id });
 
       const response = await fetch("/api/create-post", {
         method: "POST",
@@ -33,7 +49,7 @@ export function PostForm({ board }) {
           title,
           content,
           board,
-          authorId: 1, // 臨時硬編碼，實際應從 token 獲取
+          authorId: currentUser.id, // 使用當前用戶的 ID
         }),
       });
 
