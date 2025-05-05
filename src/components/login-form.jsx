@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RegisterForm } from "./register-form";
+import ResetPasswordForm from "./reset-password-form";
 
 export function LoginForm({ className, ...props }) {
   const router = useRouter();
@@ -21,6 +22,7 @@ export function LoginForm({ className, ...props }) {
     password: "",
   });
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [isResetOpen, setIsResetOpen] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +49,6 @@ export function LoginForm({ className, ...props }) {
           text: "登入成功！即將跳轉...",
           type: "success",
         });
-        // 觸發自定義事件以通知 nav-user.jsx 更新用戶狀態
         const userLoggedInEvent = new CustomEvent("userLoggedIn", {
           detail: data.user,
         });
@@ -71,6 +72,14 @@ export function LoginForm({ className, ...props }) {
 
   const switchToRegisterForm = () => {
     setIsRegisterFormOpen(!isRegisterFormOpen);
+  };
+
+  const openResetForm = () => {
+    setIsResetOpen(true);
+  };
+
+  const closeResetForm = () => {
+    setIsResetOpen(false);
   };
 
   if (!isRegisterFormOpen) {
@@ -128,6 +137,13 @@ export function LoginForm({ className, ...props }) {
                   )}
 
                   <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={openResetForm}
+                      className="text-red-600 text-sm font-medium text-left underline underline-offset-4 cursor-pointer"
+                    >
+                      忘記密碼
+                    </button>
                     <Button type="submit" className="w-full">
                       登入
                     </Button>
@@ -146,6 +162,19 @@ export function LoginForm({ className, ...props }) {
             </CardContent>
           </Card>
         </div>
+        {isResetOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1002] flex justify-center items-center">
+            <div className="bg-white p-6 rounded shadow-md w-full max-w-md relative">
+              <button
+                onClick={closeResetForm}
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+              <ResetPasswordForm onClose={closeResetForm} />
+            </div>
+          </div>
+        )}
       </div>
     );
   } else {

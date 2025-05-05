@@ -8,24 +8,27 @@ datasource db {
 }
 
 model User {
-  id                   Int            @id @default(autoincrement())
-  username             String         @unique
-  nickname             String         @unique
-  email                String         @unique
-  password             String
-  bio                  String?
-  gender               String         @default("undisclosed")
-  hobbies              String[]       @default([])
-  followerCount        Int            @default(0)
-  followedCount        Int            @default(0)
-  followerIds          Int[]          @default([])
-  followedIds          Int[]          @default([])
-  createdAt            DateTime       @default(now())
-  comments             Comment[]      @relation("UserComments")
+  id                  Int       @id @default(autoincrement())
+  username            String    @unique
+  nickname            String    @unique
+  email               String    @unique
+  password            String
+  bio                 String?
+  gender              String    @default("undisclosed")
+  hobbies             String[]
+  followerCount       Int       @default(0)
+  followedCount       Int       @default(0)
+  followerIds         Int[]
+  followedIds         Int[]
+  createdAt           DateTime  @default(now())
+  resetPasswordToken  String?   
+  resetPasswordExpires DateTime? 
+  messages            Message[]
   conversationsAsUser1 Conversation[] @relation("User1Conversations")
   conversationsAsUser2 Conversation[] @relation("User2Conversations")
-  messages             Message[]
-  posts                Post[]         @relation("UserPosts")
+  posts               Post[]    @relation("UserPosts")
+  comments            Comment[] @relation("UserComments")
+  likes               Like[]    
 }
 
 model Conversation {
@@ -56,12 +59,12 @@ model Post {
   id        Int       @id @default(autoincrement())
   title     String
   content   String
-  board     String    
   authorId  Int
   likeCount Int       @default(0)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   view      BigInt
+  board     String    @default("吹水台")
   comments  Comment[]
   author    User      @relation("UserPosts", fields: [authorId], references: [id])
 
@@ -80,4 +83,15 @@ model Comment {
   post      Post     @relation(fields: [postId], references: [id])
 
   @@index([createdAt])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  itemId    Int
+  itemType  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, itemId, itemType])
 }

@@ -3,7 +3,7 @@ import { navMain } from "@/lib/boards";
 
 const prisma = new PrismaClient();
 
-// 獲取所有有效的 board slug
+// Get all valid board slugs
 const validBoards = navMain.flatMap((category) =>
   category.items.map((board) => board.slug)
 );
@@ -14,6 +14,7 @@ export async function POST(request) {
 
     console.log("Received POST /api/create-post:", { title, content, board, authorId });
 
+    // Validate input
     if (!title || !content || !title.trim() || !content.trim()) {
       console.log("Invalid title or content");
       return new Response(JSON.stringify({ message: "標題和內容不能為空" }), {
@@ -35,29 +36,47 @@ export async function POST(request) {
       });
     }
 
+    // Create post
     const post = await prisma.post.create({
       data: {
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         board,
         authorId,
         view: 0,
         likeCount: 0,
       },
+      include: {
+        author: {
+          select: {
+            username: true,
+          },
+        },
+      },
     });
 
     console.log("Post created:", post);
 
-    // 將 BigInt 轉為 Number 以序列化
+    // Serialize the response
     const serializedPost = {
       ...post,
       view: Number(post.view),
+      likeCount: Number(post.likeCount),
+      createdAt: post.createdAt.toISOString(),
     };
 
-    return new Response(JSON.stringify({ post: serializedPost }), { status: 200 });
+    return new Response(JSON.stringify({ post: serializedPost }), { 
+      status: 201,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   } catch (error) {
     console.error("創建話題失敗:", error);
-    return new Response(JSON.stringify({ message: "伺服器錯誤" }), {
+    return new Response(JSON.stringify({ 
+      message: "伺服器錯誤",
+      error: error.message 
+    }), {
       status: 500,
     });
   }
