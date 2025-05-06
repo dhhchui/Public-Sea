@@ -1,95 +1,70 @@
-import { PrismaClient } from "@prisma/client";
-import { navMain } from "@/lib/boards";
-
-const prisma = new PrismaClient();
-
-// Get all valid board slugs
-const validBoards = navMain.flatMap((category) =>
-  category.items.map((board) => board.slug)
-);
+import prisma from "../../../lib/prisma";
+import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
 
 export async function POST(request) {
+  console.log("Received POST request to /api/create-post");
+
   try {
-    const { title, content, board, authorId } = await request.json();
-
-    console.log("Received POST /api/create-post:", { title, content, board, authorId });
-
-    // Validate input
-    if (!title || !content || !title.trim() || !content.trim()) {
-      console.log("Invalid title or content");
-      return new Response(JSON.stringify({ message: "標題和內容不能為空" }), {
-        status: 400,
-      });
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("No token provided");
+      return NextResponse.json({ message: "No token provided" }, { status: 401 });
     }
 
-    if (!board || !validBoards.includes(board)) {
-      console.log("Invalid board:", board);
-      return new Response(JSON.stringify({ message: "無效的分台" }), {
-        status: 400,
-      });
+    const token = authHeader.split(" ")[1];
+    console.log("Verifying JWT...");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    let data;
+    try {
+      data = await request.json();
+      console.log("Request body:", data);
+    } catch (error) {
+      console.error("Error parsing request body:", error);
+      return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
     }
 
-    if (!authorId) {
-      console.log("No authorId provided");
-      return new Response(JSON.stringify({ message: "未提供用戶ID" }), {
-        status: 400,
-      });
+    const { title, content, board } = data;
+
+    if (!title || !content || !board) {
+      console.log("Missing required fields");
+      return NextResponse.json({ message: "Title, content, and board are required" }, { status: 400 });
     }
 
-    // 驗證用戶是否存在
-    const userExists = await prisma.user.findUnique({
-      where: { id: parseInt(authorId) },
-    });
-
-    if (!userExists) {
-      console.log("User does not exist:", authorId);
-      return new Response(JSON.stringify({ message: "無效的用戶ID" }), {
-        status: 400,
-      });
+    const boardRecord = await prisma.board.findUnique({ where: { name: board } });
+    if (!boardRecord) {
+      console.log(`Board not found: ${board}`);
+      return NextResponse.json({ message: "Board not found" }, { status: 404 });
     }
 
-    // Create post
     const post = await prisma.post.create({
       data: {
-        title: title.trim(),
-        content: content.trim(),
-        board,
-        authorId: parseInt(authorId), // 確保 authorId 是整數
-        view: 0,
+        title,
+        content,
+        boardId: boardRecord.id,
+        authorId: decoded.userId,
+        view: BigInt(0),
         likeCount: 0,
       },
-      include: {
-        author: {
-          select: {
-            username: true,
-          },
-        },
-      },
     });
 
-    console.log("Post created:", post);
-
-    // Serialize the response
     const serializedPost = {
       ...post,
-      view: Number(post.view),
-      likeCount: Number(post.likeCount),
-      createdAt: post.createdAt.toISOString(),
+      view: post.view.toString(),
     };
 
-    return new Response(JSON.stringify({ post: serializedPost }), { 
-      status: 201,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json({ message: "Post created successfully", post: serializedPost }, { status: 201 });
   } catch (error) {
-    console.error("創建話題失敗:", error);
-    return new Response(JSON.stringify({ 
-      message: "伺服器錯誤",
-      error: error.message 
-    }), {
-      status: 500,
+    console.error("Error in POST /api/create-post:", {
+      message: error.message,
+      stack: error.stack,
     });
+    if (error.name === "JsonWebTokenError") {
+      return NextResponse.json({ message: "Invalid or expired token" }, { status: 401 });
+    }
+    return NextResponse.json({ message: "Server error: " + error.message }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }

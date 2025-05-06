@@ -2,165 +2,147 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { allBoards } from "@/components/boards-data"; // 引入所有分台
 
 export default function CreatePostPage() {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [boardId, setBoardId] = useState("");
+  const [boards, setBoards] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    topic: "",
-    content: "",
-    board: allBoards[0] || "", // 預設為第一個分台
-  });
-  const [message, setMessage] = useState({ text: "", type: "" });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
 
-  // 從 localStorage 獲取當前用戶
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    }
-  }, []);
+    const fetchBoards = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          router.push("/login");
+          return;
+        }
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+        const res = await fetch("/api/boards", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBoards(data.boards);
+
+          // 設置預設看板（選擇第一個看板）
+          if (data.boards.length > 0) {
+            setBoardId(data.boards[0].id.toString());
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching boards:", error);
+      }
+    };
+
+    fetchBoards();
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
 
-    // 檢查是否登入
-    if (!currentUser) {
-      setMessage({ text: "請先登入以發布話題", type: "error" });
-      setTimeout(() => router.push("/login"), 1500);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
       return;
     }
 
-    setIsSubmitting(true);
-    setMessage({ text: "發帖中...", type: "info" });
+    if (!title || !content || !boardId) {
+      setError("Please fill in all fields.");
+      return;
+    }
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setMessage({ text: "未提供權杖，請先登入", type: "error" });
-        setIsSubmitting(false);
-        return;
-      }
-
-      const response = await fetch("/api/create-post", {
+      const res = await fetch("/api/create-post", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: formData.topic,
-          content: formData.content,
-          board: formData.board,
-          authorId: currentUser.id, // 使用當前用戶的 ID
-        }),
+        body: JSON.stringify({ title, content, boardId: parseInt(boardId) }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({
-          text: "帖子創建成功！即將跳轉...",
-          type: "success",
-        });
-        setTimeout(() => router.push(`/boards/${formData.board}`), 1500);
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess("Post created successfully! Redirecting...");
+        setTimeout(() => {
+          router.push("/post-list");
+        }, 1000);
       } else {
-        setMessage({
-          text: data.message || "發帖失敗，請重試",
-          type: "error",
-        });
+        setError(data.message);
       }
     } catch (error) {
-      setMessage({
-        text: "網絡錯誤，請稍後再試",
-        type: "error",
-      });
-      console.error("Create post error:", error);
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error creating post:", error);
+      setError("An error occurred while creating the post. Please try again.");
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
-      <h1 className="text-2xl font-bold text-center mb-6">創建帖子</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">標題*</label>
-          <input
-            type="text"
-            name="topic"
-            value={formData.topic}
-            onChange={handleChange}
-            required
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="輸入帖子標題"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">內容*</label>
-          <textarea
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            required
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="輸入帖子內容"
-            rows="5"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">分台*</label>
-          <select
-            name="board"
-            value={formData.board}
-            onChange={handleChange}
-            required
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {allBoards.map((board) => (
-              <option key={board} value={board}>
-                {board}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {message.text && (
-          <div
-            className={`p-3 rounded ${
-              message.type === "error"
-                ? "bg-red-100 text-red-700"
-                : message.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            {message.text}
-          </div>
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+      <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-4 text-center">Create a Post</h2>
+        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
+        {success && (
+          <p className="text-green-500 mb-4 text-center">{success}</p>
         )}
-
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-gray-700">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2 border rounded"
+              placeholder="Enter the post title"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700">Content</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full p-2 border rounded"
+              rows="5"
+              placeholder="Enter the post content"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-700">Board</label>
+            <select
+              value={boardId}
+              onChange={(e) => setBoardId(e.target.value)}
+              className="w-full p-2 border rounded"
+            >
+              {boards.map((board) => (
+                <option key={board.id} value={board.id}>
+                  {board.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Create Post
+          </button>
+        </form>
         <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-2 rounded transition-colors ${
-            isSubmitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-500 hover:bg-blue-600 text-white"
-          }`}
+          onClick={() => router.push("/dashboard")}
+          className="w-full p-2 mt-4 bg-gray-500 text-white rounded hover:bg-gray-600"
         >
-          {isSubmitting ? "發帖中..." : "發帖"}
+          Back to Dashboard
         </button>
-      </form>
+      </div>
     </div>
   );
 }

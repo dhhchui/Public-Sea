@@ -54,11 +54,14 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
+        // 將 user 存入 localStorage
+        localStorage.setItem("user", JSON.stringify(data.user));
+        console.log("Stored user in localStorage:", data.user);
         setMessage({
           text: "登入成功！即將跳轉至首頁...",
           type: "success",
         });
-        setTimeout(() => router.push("/"), 3000);
+        setTimeout(() => router.push("/boards/current-affairs"), 2000);
       } else {
         setMessage({
           text: data.message || "登入失敗，請檢查您的輸入",

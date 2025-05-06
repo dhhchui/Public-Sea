@@ -55,22 +55,6 @@ model Message {
   @@index([createdAt])
 }
 
-model Post {
-  id        Int       @id @default(autoincrement())
-  title     String
-  content   String
-  authorId  Int
-  likeCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  view      BigInt
-  board     String    @default("吹水台")
-  comments  Comment[]
-  author    User      @relation("UserPosts", fields: [authorId], references: [id])
-
-  @@index([createdAt])
-}
-
 model Comment {
   id        Int      @id @default(autoincrement())
   content   String
@@ -94,4 +78,29 @@ model Like {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, itemId, itemType])
+}
+
+model Board {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now()) // 添加預設值
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  authorId  Int
+  likeCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  view      BigInt    @default(0)
+  boardId   Int
+  board     Board     @relation(fields: [boardId], references: [id])
+  comments  Comment[]
+  author    User      @relation("UserPosts", fields: [authorId], references: [id])
+
+  @@index([createdAt])
 }

@@ -24,23 +24,25 @@ export function PostList({ board }) {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const url = `/api/posts?board=${encodeURIComponent(board)}&page=${currentPage}&pageSize=${pageSize}`;
+        const url = `/api/post-list?board=${encodeURIComponent(board)}&page=${currentPage}&pageSize=${pageSize}`;
+        console.log("Fetching posts from:", url);
         const response = await fetch(url);
 
         if (!response.ok) {
           const text = await response.text();
           throw new Error(
             response.status === 404
-              ? "無法找到帖子 API，請檢查伺服器配置"
-              : `伺服器錯誤: ${response.status}`
+              ? "無法找到話題 API，請檢查伺服器配置"
+              : `伺服器錯誤: ${response.status} - ${text}`
           );
         }
 
         const data = await response.json();
         setPosts(data.posts || []);
-        const count = Number(data.totalCount) || 0;
+        const count = Number(data.total) || 0;
         setTotalPages(Math.max(1, Math.ceil(count / pageSize)));
       } catch (error) {
+        console.error("Error fetching posts:", error);
         setError(error.message);
       } finally {
         setIsLoading(false);
@@ -60,7 +62,7 @@ export function PostList({ board }) {
         載入話題失敗：{error}
         {error.includes("404") && (
           <p className="mt-1 text-sm">
-            請確認 <code>app/api/posts/route.js</code> 是否存在並正確配置。
+            請確認 <code>app/api/post-list/route.js</code> 是否存在並正確配置。
           </p>
         )}
       </div>
@@ -79,12 +81,12 @@ export function PostList({ board }) {
             key={post.id}
             className="border rounded p-2 hover:bg-gray-50 transition-all duration-200"
           >
-            <Link href={`/boards/${board}?postId=${post.id}`}>
+            <Link href={`/boards/${board}/posts/${post.id}`}>
               <h3 className="text-lg font-semibold hover:text-blue-600">
                 {post.title}
               </h3>
               <p className="text-sm text-gray-500 mt-1">
-                作者: {post.author?.username || "匿名"} • 瀏覽: {post.view} • 讚: {post.likeCount}
+                作者: {post.author?.username }  • 瀏覽: {post.view} • 讚: {post.likeCount}
               </p>
             </Link>
           </div>
