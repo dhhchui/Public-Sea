@@ -34,8 +34,10 @@ export function RegisterForm({
     email: "",
     password: "",
     nickname: "",
-    gender: "undisclosed",
+    gender: "",
   });
+
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
 
   const [message, setMessage] = useState({ text: "", type: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +61,11 @@ export function RegisterForm({
       return false;
     }
     if (formData.password.length < 6) {
-      setMessage({ text: "密碼至少需要6個字符", type: "error" });
+      setMessage({ text: "密碼至少需要8個字符", type: "error" });
+      return false;
+    }
+    if (passwordConfirmation !== formData.password) {
+      setMessage({ text: "兩次輸入的密碼並不相同", type: "error" });
       return false;
     }
     return true;
@@ -121,14 +127,14 @@ export function RegisterForm({
     return (
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm z-[1001]">
         <div className={cn("flex flex-col gap-6", className)} {...props}>
-          <Card>
+          <Card className="max-h-[96vh]">
             <CardHeader>
               <CardTitle>註冊帳號</CardTitle>
               <CardDescription>
-                輸入你的電郵地址以註冊帳號
+                輸入你的電郵地址及用戶名稱以註冊帳號
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-y-auto">
               <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-6">
                   <div className="grid gap-3">
@@ -137,7 +143,7 @@ export function RegisterForm({
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      placeholder="example@example.com"
+                      placeholder="user@example.com"
                       required />
                   </div>
                   <div className="grid gap-3">
@@ -148,37 +154,38 @@ export function RegisterForm({
                       onChange={handleChange}
                       required
                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Username"
+                      placeholder="登入帳戶時輸入這個名稱或電郵地址"
                     />
                   </div>
-                  <div className="grid gap-3">
-                    <Label htmlFor="nickname">綽號</Label>
-                    <Input type="text"
-                      name="nickname"
-                      value={formData.nickname}
-                      onChange={handleChange}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="綽號"
-                    />
-                  </div>
-                  <div className="grid gap-3">
-                    <Label htmlFor="gender">性別</Label>
-                    <Select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">男性</SelectItem>
-                        <SelectItem value="female">女性</SelectItem>
-                        <SelectItem value="other">其他</SelectItem>
-                        <SelectItem value="undisclosed">不公開</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="grid gap-3">
+                      <Label htmlFor="nickname">綽號</Label>
+                      <Input type="text"
+                        name="nickname"
+                        value={formData.nickname}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="發言時將會顯示這個綽號"
+                      />
+                    </div>
+                    <div className="grid gap-3">
+                      <Label htmlFor="gender">性別</Label>
+                      <Select
+                        type="text"
+                        name="gender"
+                        // value={formData.gender}
+                        onChange={handleChange}
+                      >
+                        <SelectTrigger className="w-auto">
+                          <SelectValue placeholder="選擇你的性別" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">男性</SelectItem>
+                          <SelectItem value="female">女性</SelectItem>
+                          <SelectItem value="other">其他</SelectItem>
+                          <SelectItem value="undisclosed">不公開</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   <div className="grid gap-3">
                     <div className="flex items-center">
                       <Label htmlFor="password">密碼</Label>
@@ -193,8 +200,26 @@ export function RegisterForm({
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      minLength={6}
-                      placeholder="至少6個字符" />
+                      minLength={8}
+                      placeholder="最少8個字，必須包含大、小寫字母及符號" />
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="flex items-center">
+                      <Label htmlFor="password">密碼確認</Label>
+                      {/* <a
+                        href="#"
+                        className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
+                        Forgot your password?
+                      </a> */}
+                    </div>
+                    <Input id="repeatPassword" type="password"
+                      // name="password"
+                      // value={formData.password}
+                      // onChange={handleChange}
+                      onChange={(e) => setPasswordConfirmation(e.target.value)}
+                      required
+                      minLength={8}
+                      placeholder="兩次輸入的密碼必須相同" />
                   </div>
 
                   {message.text && (
