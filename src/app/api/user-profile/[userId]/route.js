@@ -26,6 +26,8 @@ export async function GET(request, { params }) {
         followedCount: true,
         followerIds: true,
         followedIds: true,
+        rating: true, // 已包含
+        isRedFlagged: true, // 已包含
       },
     });
 

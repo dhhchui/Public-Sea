@@ -37,10 +37,12 @@ export default function HomePage() {
           if (data.boards.length > 0) {
             setBoardName(data.boards[0].name);
           }
+        } else {
+          setMessage({ text: "無法載入分台列表", type: "error" });
         }
       } catch (error) {
         console.error("Error fetching boards:", error);
-        setMessage({ text: "無法載入分台列表", type: "error" });
+        setMessage({ text: "無法載入分台列表，可能是伺服器或資料庫連線問題。", type: "error" });
       }
     };
 
@@ -55,10 +57,12 @@ export default function HomePage() {
         if (res.ok) {
           const data = await res.json();
           setPopularPosts(data.posts.slice(0, 5));
+        } else {
+          setMessage({ text: "無法載入熱門貼文", type: "error" });
         }
       } catch (error) {
         console.error("Error fetching popular posts:", error);
-        setMessage({ text: "無法載入熱門貼文", type: "error" });
+        setMessage({ text: "無法載入熱門貼文，可能是伺服器或資料庫連線問題。", type: "error" });
       }
     };
 
@@ -93,16 +97,15 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error("Error creating post:", error);
-      setMessage({ text: "創建貼文失敗", type: "error" });
+      setMessage({ text: "創建貼文失敗，可能是伺服器或資料庫連線問題。", type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 根據排名計算圖標大小和透明度
   const getIconStyleByRank = (rank) => {
-    const sizes = [24, 22, 20, 18, 16]; // 排名 1 到 5 的圖標大小
-    const opacities = [1, 0.75, 0.5, 0.35, 0.2]; // 透明度
+    const sizes = [24, 22, 20, 18, 16];
+    const opacities = [1, 0.75, 0.5, 0.35, 0.2];
     return {
       size: sizes[rank - 1] || 16,
       opacity: opacities[rank - 1] || 0.2,
@@ -141,7 +144,7 @@ export default function HomePage() {
                       <Flame
                         className="mr-3 flex-shrink-0 hover:scale-110 transition-all duration-200"
                         style={{
-                          color: `rgba(255, 82, 82, ${opacity})`, // 紅色漸變
+                          color: `rgba(255, 82, 82, ${opacity})`,
                         }}
                         size={size}
                       />

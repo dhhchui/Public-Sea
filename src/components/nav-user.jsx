@@ -39,12 +39,16 @@ export function NavUser() {
   const [user, setUser] = useState(null);
   const [isRegisterOverlayOpen, setIsRegisterOverlayOpen] = useState(false);
   const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false);
+  const [error, setError] = useState("");
 
-  // 監聽登入事件並更新用戶狀態
   useEffect(() => {
     const handleUserLoggedIn = (event) => {
       const userData = event.detail;
       if (userData) {
+        // 確保 userId 是數字
+        if (typeof userData.userId === "string") {
+          userData.userId = parseInt(userData.userId);
+        }
         setUser(userData);
         setIsLoggedIn(true);
         localStorage.setItem("user", JSON.stringify(userData));
@@ -54,12 +58,17 @@ export function NavUser() {
 
     window.addEventListener("userLoggedIn", handleUserLoggedIn);
 
-    // 檢查 localStorage 中的登入狀態
     const storedUser = localStorage.getItem("user");
     const storedLoginStatus = localStorage.getItem("isLoggedIn");
     if (storedLoginStatus === "true" && storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      // 確保 userId 是數字
+      if (typeof parsedUser.userId === "string") {
+        parsedUser.userId = parseInt(parsedUser.userId);
+        localStorage.setItem("user", JSON.stringify(parsedUser));
+      }
       setIsLoggedIn(true);
-      setUser(JSON.parse(storedUser));
+      setUser(parsedUser);
     }
 
     return () => {
@@ -81,6 +90,35 @@ export function NavUser() {
     setUser(null);
     setIsLoggedIn(false);
     router.push("/");
+  };
+
+  const handleProfileClick = async () => {
+    if (!user?.userId || isNaN(user.userId)) { //  user.userId
+      setError("用戶 ID 無效");
+      console.error("User ID is invalid or missing:", user);
+      return;
+    }
+    try {
+      console.log(`Fetching user profile for ID: ${user.userId}`); //  user.userId
+      const res = await fetch(`/api/user-profile/${user.userId}`, { //  user.userId
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      console.log("API response status:", res.status);
+      if (res.ok) {
+        console.log("Redirecting to /user-profile/", user.userId); // user.userId
+        router.push(`/user-profile/${user.userId}`); // user.userId
+      } else {
+        const data = await res.json();
+        setError(data.message || "無法載入用戶資料");
+        console.error("API error response:", data);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      setError("載入用戶資料時發生錯誤");
+    }
   };
 
   if (!isLoggedIn) {
@@ -171,6 +209,9 @@ export function NavUser() {
               align="end"
               sideOffset={4}
             >
+              {error && (
+                <div className="px-2 py-1.5 text-sm text-red-500">{error}</div>
+              )}
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
@@ -189,7 +230,7 @@ export function NavUser() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleProfileClick}>
                   <BadgeCheck className="mr-2 h-4 w-4" />
                   <span>帳號</span>
                 </DropdownMenuItem>
