@@ -45,6 +45,11 @@ export function LoginForm({ className, ...props }) {
       const data = await response.json();
 
       if (response.ok) {
+        // 將 user 和 token 存入 localStorage
+        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("token", data.user.token);
+        console.log("Stored user in localStorage:", data.user);
+        console.log("Stored token in localStorage:", data.user.token);
         setMessage({
           text: "登入成功！即將跳轉...",
           type: "success",

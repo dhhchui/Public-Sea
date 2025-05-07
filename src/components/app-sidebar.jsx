@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation"; // 使用 App Router 版本的 useRouter
-import { ShipWheel, Search, MessageSquareText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { ShipWheel, Search, MessageSquareText, Newspaper, Cpu, CalendarDays, Piano, Users } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
-import { navMain } from "@/lib/boards";
 import {
   Sidebar,
   SidebarContent,
@@ -18,11 +18,71 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 
+const iconMap = {
+  "新聞": Newspaper,
+  "科技": Cpu,
+  "生活": CalendarDays,
+  "興趣": Piano,
+  "其他": Users,
+};
+
 export function AppSidebar({ ...props }) {
-  const router = useRouter(); // 初始化 useRouter
+  const router = useRouter();
+  const [boards, setBoards] = useState([]);
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    const fetchBoards = async () => {
+      try {
+        const res = await fetch("/api/boards", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBoards(data.boards);
+        }
+      } catch (error) {
+        console.error("Error fetching boards:", error);
+      }
+    };
+
+    fetchBoards();
+  }, []);
+
+  useEffect(() => {
+    const categories = [
+      { title: "新聞", names: ["時事台", "財經台"] },
+      { title: "科技", names: ["手機台", "電腦台"] },
+      { title: "生活", names: ["飲食台", "上班台", "旅遊台", "校園台"] },
+      { title: "興趣", names: ["學術台", "體育台", "遊戲台", "影視台", "音樂台"] },
+      { title: "其他", names: ["吹水台", "管理台"] },
+    ];
+
+    const dynamicItems = categories.map((category) => {
+      const categoryBoards = boards
+        .filter((board) => category.names.includes(board.name))
+        .map((board) => ({
+          title: board.name,
+          url: `/boards/${board.name}`,
+          slug: board.name,
+        }));
+
+      return {
+        title: category.title,
+        icon: iconMap[category.title],
+        isActive: category.title === "新聞",
+        items: categoryBoards,
+      };
+    });
+
+    setItems(dynamicItems.filter((item) => item.items.length > 0));
+  }, [boards]);
 
   const handleHomeRedirect = () => {
-    router.push("/home"); // 程式化導航到 /home
+    router.push("/home");
   };
 
   return (
@@ -54,7 +114,7 @@ export function AppSidebar({ ...props }) {
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        <NavMain items={items} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

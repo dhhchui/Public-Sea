@@ -8,27 +8,36 @@ datasource db {
 }
 
 model User {
-  id                  Int       @id @default(autoincrement())
-  username            String    @unique
-  nickname            String    @unique
-  email               String    @unique
-  password            String
-  bio                 String?
-  gender              String    @default("undisclosed")
-  hobbies             String[]
-  followerCount       Int       @default(0)
-  followedCount       Int       @default(0)
-  followerIds         Int[]
-  followedIds         Int[]
-  createdAt           DateTime  @default(now())
-  resetPasswordToken  String?   
-  resetPasswordExpires DateTime? 
-  messages            Message[]
-  conversationsAsUser1 Conversation[] @relation("User1Conversations")
-  conversationsAsUser2 Conversation[] @relation("User2Conversations")
-  posts               Post[]    @relation("UserPosts")
-  comments            Comment[] @relation("UserComments")
-  likes               Like[]    
+  id                                           Int             @id @default(autoincrement())
+  username                                     String          @unique
+  nickname                                     String          @unique
+  email                                        String          @unique
+  password                                     String
+  bio                                          String?
+  gender                                       String          @default("undisclosed")
+  hobbies                                      String[]
+  followerCount                                Int             @default(0)
+  followedCount                                Int             @default(0)
+  followerIds                                  Int[]
+  followedIds                                  Int[]
+  createdAt                                    DateTime        @default(now())
+  resetPasswordToken                           String?
+  resetPasswordExpires                         DateTime?
+  friends                                      Int[]           @default([])
+  isRedFlagged                                 Boolean         @default(false)
+  rating                                       Int             @default(0)
+  Block_Block_blockedIdToUser                  Block[]         @relation("Block_blockedIdToUser")
+  Block_Block_blockerIdToUser                  Block[]         @relation("Block_blockerIdToUser")
+  comments                                     Comment[]       @relation("UserComments")
+  conversationsAsUser1                         Conversation[]  @relation("User1Conversations")
+  conversationsAsUser2                         Conversation[]  @relation("User2Conversations")
+  FriendRequest_FriendRequest_receiverIdToUser FriendRequest[] @relation("FriendRequest_receiverIdToUser")
+  FriendRequest_FriendRequest_senderIdToUser   FriendRequest[] @relation("FriendRequest_senderIdToUser")
+  likes                                        Like[]
+  messages                                     Message[]
+  posts                                        Post[]          @relation("UserPosts")
+  UserRating_UserRating_ratedUserIdToUser      UserRating[]    @relation("UserRating_ratedUserIdToUser")
+  UserRating_UserRating_raterIdToUser          UserRating[]    @relation("UserRating_raterIdToUser")
 }
 
 model Conversation {
@@ -83,9 +92,9 @@ model Like {
 model Board {
   id        Int      @id @default(autoincrement())
   name      String   @unique
-  posts     Post[]
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now()) // 添加預設值
+  updatedAt DateTime @default(now()) @updatedAt
+  posts     Post[]
 }
 
 model Post {
@@ -98,9 +107,46 @@ model Post {
   updatedAt DateTime  @updatedAt
   view      BigInt    @default(0)
   boardId   Int
-  board     Board     @relation(fields: [boardId], references: [id])
   comments  Comment[]
   author    User      @relation("UserPosts", fields: [authorId], references: [id])
+  board     Board     @relation(fields: [boardId], references: [id])
 
   @@index([createdAt])
+}
+
+model Block {
+  id                         Int      @id @default(autoincrement())
+  blockerId                  Int
+  blockedId                  Int
+  createdAt                  DateTime @default(now())
+  User_Block_blockedIdToUser User     @relation("Block_blockedIdToUser", fields: [blockedId], references: [id])
+  User_Block_blockerIdToUser User     @relation("Block_blockerIdToUser", fields: [blockerId], references: [id])
+
+  @@unique([blockerId, blockedId])
+}
+
+model FriendRequest {
+  id                                  Int      @id @default(autoincrement())
+  senderId                            Int
+  receiverId                          Int
+  status                              String   @default("pending")
+  createdAt                           DateTime @default(now())
+  updatedAt                           DateTime
+  User_FriendRequest_receiverIdToUser User     @relation("FriendRequest_receiverIdToUser", fields: [receiverId], references: [id])
+  User_FriendRequest_senderIdToUser   User     @relation("FriendRequest_senderIdToUser", fields: [senderId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+model UserRating {
+  id                                Int      @id @default(autoincrement())
+  raterId                           Int
+  ratedUserId                       Int
+  rating                            Int
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime
+  User_UserRating_ratedUserIdToUser User     @relation("UserRating_ratedUserIdToUser", fields: [ratedUserId], references: [id])
+  User_UserRating_raterIdToUser     User     @relation("UserRating_raterIdToUser", fields: [raterId], references: [id])
+
+  @@unique([raterId, ratedUserId])
 }

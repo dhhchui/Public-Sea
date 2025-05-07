@@ -14,6 +14,11 @@ export async function GET(request) {
             nickname: true,
           },
         },
+        board: { // 添加 board 資訊
+          select: {
+            name: true,
+          },
+        },
       },
     });
 

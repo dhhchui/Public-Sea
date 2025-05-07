@@ -8,60 +8,66 @@ export async function POST(request) {
   try {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided");
+      console.log("No token provided in Authorization header");
       return NextResponse.json({ message: "No token provided" }, { status: 401 });
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("Verifying JWT...");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token received:", token);
 
-    let data;
-    try {
-      data = await request.json();
-      console.log("Request body:", data);
-    } catch (error) {
-      console.error("Error parsing request body:", error);
-      return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
+    if (!token) {
+      console.log("Token is empty or undefined");
+      return NextResponse.json({ message: "Token is empty" }, { status: 401 });
     }
 
-    const { title, content, board } = data;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token decoded:", decoded);
 
+    const { title, content, board } = await request.json();
     if (!title || !content || !board) {
-      console.log("Missing required fields");
+      console.log("Missing required fields:", { title, content, board });
       return NextResponse.json({ message: "Title, content, and board are required" }, { status: 400 });
     }
 
-    const boardRecord = await prisma.board.findUnique({ where: { name: board } });
+    let boardRecord = await prisma.board.findUnique({ where: { name: board } });
     if (!boardRecord) {
-      console.log(`Board not found: ${board}`);
-      return NextResponse.json({ message: "Board not found" }, { status: 404 });
+      console.log(`Board not found, creating new board: ${board}`);
+      boardRecord = await prisma.board.create({
+        data: { name: board },
+      });
     }
 
     const post = await prisma.post.create({
       data: {
         title,
         content,
-        boardId: boardRecord.id,
         authorId: decoded.userId,
-        view: BigInt(0),
+        boardId: boardRecord.id,
+        view: 0,
         likeCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      include: {
+        author: { select: { username: true } },
+        board: { select: { name: true } },
       },
     });
 
+    console.log("Post created:", post);
+
+    // 將 BigInt 轉換為字符串以避免序列化錯誤
     const serializedPost = {
       ...post,
-      view: post.view.toString(),
+      view: post.view.toString(), // 將 BigInt 轉為字符串
     };
 
     return NextResponse.json({ message: "Post created successfully", post: serializedPost }, { status: 201 });
   } catch (error) {
-    console.error("Error in POST /api/create-post:", {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error("Error in POST /api/create-post:", error);
     if (error.name === "JsonWebTokenError") {
-      return NextResponse.json({ message: "Invalid or expired token" }, { status: 401 });
+      console.log("JWT Error details:", error.message);
+      return NextResponse.json({ message: "Invalid or malformed token" }, { status: 401 });
     }
     return NextResponse.json({ message: "Server error: " + error.message }, { status: 500 });
   } finally {
