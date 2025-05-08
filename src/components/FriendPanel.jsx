@@ -11,10 +11,12 @@ export function FriendPanel({ user, isOpen, onClose }) {
   const [friendRequests, setFriendRequests] = useState([]);
   const [newFriendQuery, setNewFriendQuery] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && user?.userId) {
       const fetchFriendData = async () => {
+        setIsLoading(true);
         try {
           const friendsRes = await fetch("/api/friends", {
             method: "GET",
@@ -46,6 +48,8 @@ export function FriendPanel({ user, isOpen, onClose }) {
         } catch (error) {
           console.error("Error fetching friend data:", error);
           setError("載入好友資料時發生錯誤");
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchFriendData();
@@ -138,7 +142,9 @@ export function FriendPanel({ user, isOpen, onClose }) {
           <CardContent className="space-y-4 text-black">
             <div>
               <h3 className="font-semibold">我的好友</h3>
-              {friends.length > 0 ? (
+              {isLoading ? (
+                <p className="text-gray-500">正在載入...</p>
+              ) : friends.length > 0 ? (
                 friends.map((friend) => (
                   <div
                     key={friend.id}
@@ -158,7 +164,9 @@ export function FriendPanel({ user, isOpen, onClose }) {
             </div>
             <div>
               <h3 className="font-semibold">好友請求</h3>
-              {friendRequests.length > 0 ? (
+              {isLoading ? (
+                <p className="text-gray-500">正在載入...</p>
+              ) : friendRequests.length > 0 ? (
                 friendRequests.map((request) => (
                   <div
                     key={request.id}

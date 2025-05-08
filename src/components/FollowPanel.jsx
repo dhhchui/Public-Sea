@@ -10,8 +10,10 @@ export function FollowPanel({ user, isOpen, onClose }) {
   const [following, setFollowing] = useState([]);
   const [error, setError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchFollowData = async () => {
+    setIsLoading(true);
     try {
       // 獲取當前用戶資料
       console.log("Fetching current user data from /api/user-profile");
@@ -80,6 +82,8 @@ export function FollowPanel({ user, isOpen, onClose }) {
     } catch (error) {
       console.error("Error fetching follow data:", error);
       setError("載入關注資料時發生錯誤");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,7 +110,7 @@ export function FollowPanel({ user, isOpen, onClose }) {
       });
       const data = await res.json();
       if (res.ok) {
-        await fetchFollowData(); // 刷新資料
+        await fetchFollowData();
         alert("關注成功！");
         setError("");
       } else {
@@ -135,7 +139,7 @@ export function FollowPanel({ user, isOpen, onClose }) {
       });
       const data = await res.json();
       if (res.ok) {
-        await fetchFollowData(); // 刷新資料
+        await fetchFollowData();
         alert("取消關注成功！");
         setError("");
       } else {
@@ -160,7 +164,9 @@ export function FollowPanel({ user, isOpen, onClose }) {
           <CardContent className="space-y-4 text-black">
             <div>
               <h3 className="font-semibold">關注我的人</h3>
-              {followers.length > 0 ? (
+              {isLoading ? (
+                <p className="text-gray-500">正在載入...</p>
+              ) : followers.length > 0 ? (
                 followers.map((follower) => {
                   const isFollowing = currentUser?.followedIds?.includes(follower.id) || false;
                   return (
@@ -191,7 +197,9 @@ export function FollowPanel({ user, isOpen, onClose }) {
             </div>
             <div>
               <h3 className="font-semibold">我關注的人</h3>
-              {following.length > 0 ? (
+              {isLoading ? (
+                <p className="text-gray-500">正在載入...</p>
+              ) : following.length > 0 ? (
                 following.map((followed) => (
                   <div
                     key={followed.id}
