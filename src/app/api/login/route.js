@@ -2,9 +2,14 @@ import prisma from "../../../lib/prisma";
 import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import dotenv from "dotenv";
+
+// 加載環境變數
+dotenv.config();
 
 export async function POST(request) {
   console.log("Received POST request to /api/login");
+  console.log("JWT_SECRET in API route:", process.env.JWT_SECRET);
 
   // 檢查請求體
   let data;
@@ -42,6 +47,12 @@ export async function POST(request) {
     if (!passwordMatch) {
       console.log("密碼錯誤");
       return NextResponse.json({ message: "密碼錯誤" }, { status: 401 });
+    }
+
+    // 確保 JWT_SECRET 存在
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is not defined");
+      return NextResponse.json({ message: "伺服器配置錯誤" }, { status: 500 });
     }
 
     // 生成 JWT token

@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
+import SearchBar from "@/components/SearchBar";
 
 const iconMap = {
   "新聞": Newspaper,
@@ -100,18 +101,17 @@ export function AppSidebar({ ...props }) {
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SearchBar />
+          </SidebarMenuItem>
+          <SidebarMenuButton tooltip="對話">
+            <MessageSquareText />
+            <span>對話</span>
+          </SidebarMenuButton>
+          <SidebarMenuButton tooltip="返回首頁" onClick={handleHomeRedirect}>
+            <span>返回首頁</span>
+          </SidebarMenuButton>
         </SidebarMenu>
-        <SidebarMenuButton tooltip="搜尋">
-          <Search />
-          <span>搜尋</span>
-        </SidebarMenuButton>
-        <SidebarMenuButton tooltip="對話">
-          <MessageSquareText />
-          <span>對話</span>
-        </SidebarMenuButton>
-        <SidebarMenuButton tooltip="返回首頁" onClick={handleHomeRedirect}>
-          <span>返回首頁</span>
-        </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={items} />

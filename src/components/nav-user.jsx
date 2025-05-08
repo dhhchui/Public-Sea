@@ -10,10 +10,13 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
+  Handshake,
   LogIn,
   LogOut,
   Sparkles,
   UserRoundPlus,
+  Users,
+  UserCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +34,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FollowPanel } from "@/components/FollowPanel";
+import { FriendPanel } from "@/components/FriendPanel";
 
 export function NavUser() {
   const router = useRouter();
@@ -39,13 +44,13 @@ export function NavUser() {
   const [user, setUser] = useState(null);
   const [isRegisterOverlayOpen, setIsRegisterOverlayOpen] = useState(false);
   const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false);
-  const [error, setError] = useState("");
+  const [isFollowPanelOpen, setIsFollowPanelOpen] = useState(false);
+  const [isFriendPanelOpen, setIsFriendPanelOpen] = useState(false);
 
   useEffect(() => {
     const handleUserLoggedIn = (event) => {
       const userData = event.detail;
       if (userData) {
-        // 確保 userId 是數字
         if (typeof userData.userId === "string") {
           userData.userId = parseInt(userData.userId);
         }
@@ -62,7 +67,6 @@ export function NavUser() {
     const storedLoginStatus = localStorage.getItem("isLoggedIn");
     if (storedLoginStatus === "true" && storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      // 確保 userId 是數字
       if (typeof parsedUser.userId === "string") {
         parsedUser.userId = parseInt(parsedUser.userId);
         localStorage.setItem("user", JSON.stringify(parsedUser));
@@ -93,32 +97,35 @@ export function NavUser() {
   };
 
   const handleProfileClick = async () => {
-    if (!user?.userId || isNaN(user.userId)) { //  user.userId
-      setError("用戶 ID 無效");
+    if (!user?.userId || isNaN(user.userId)) {
       console.error("User ID is invalid or missing:", user);
       return;
     }
     try {
-      console.log(`Fetching user profile for ID: ${user.userId}`); //  user.userId
-      const res = await fetch(`/api/user-profile/${user.userId}`, { //  user.userId
+      const res = await fetch(`/api/user-profile/${user.userId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
       });
-      console.log("API response status:", res.status);
       if (res.ok) {
-        console.log("Redirecting to /user-profile/", user.userId); // user.userId
-        router.push(`/user-profile/${user.userId}`); // user.userId
+        router.push(`/user-profile/${user.userId}`);
       } else {
         const data = await res.json();
-        setError(data.message || "無法載入用戶資料");
         console.error("API error response:", data);
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      setError("載入用戶資料時發生錯誤");
     }
+  };
+
+  const handleFollowPanel = () => {
+    setIsFollowPanelOpen(true);
+  };
+
+  const handleFriendPanel = () => {
+    setIsFriendPanelOpen(true);
   };
 
   if (!isLoggedIn) {
@@ -209,9 +216,6 @@ export function NavUser() {
               align="end"
               sideOffset={4}
             >
-              {error && (
-                <div className="px-2 py-1.5 text-sm text-red-500">{error}</div>
-              )}
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
@@ -234,6 +238,14 @@ export function NavUser() {
                   <BadgeCheck className="mr-2 h-4 w-4" />
                   <span>帳號</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleFollowPanel}>
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  <span>關注</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleFriendPanel}>
+                  <Handshake className="mr-2 h-4 w-4" />
+                  <span>好友</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Bell className="mr-2 h-4 w-4" />
                   <span>通知</span>
@@ -248,10 +260,12 @@ export function NavUser() {
           </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
+
+      <FollowPanel user={user} isOpen={isFollowPanelOpen} onClose={() => setIsFollowPanelOpen(false)} />
+      <FriendPanel user={user} isOpen={isFriendPanelOpen} onClose={() => setIsFriendPanelOpen(false)} />
     </>
   );
 }
-
 // "use client";
 
 // import { useRouter } from "next/navigation";
