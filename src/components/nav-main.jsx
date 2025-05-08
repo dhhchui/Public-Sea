@@ -34,7 +34,7 @@ export function NavMain({ items }) {
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
                   tooltip={item.title}
-                  onClick={item.onClick} // 添加 onClick 事件
+                  className="cursor-pointer"
                 >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>

@@ -7,27 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                   Int            @id @default(autoincrement())
-  username             String         @unique
-  nickname             String         @unique
-  email                String         @unique
-  password             String
-  bio                  String?
-  gender               String         @default("undisclosed")
-  hobbies              String[]       @default([])
-  followerCount        Int            @default(0)
-  followedCount        Int            @default(0)
-  followerIds          Int[]          @default([])
-  followedIds          Int[]          @default([])
-  createdAt            DateTime       @default(now())
-  comments             Comment[]      @relation("UserComments")
-  conversationsAsUser1 Conversation[] @relation("User1Conversations")
-  conversationsAsUser2 Conversation[] @relation("User2Conversations")
-  messages             Message[]
-  posts                Post[]         @relation("UserPosts")
-}
-
 model Conversation {
   id        Int       @id @default(autoincrement())
   user1Id   Int
@@ -52,22 +31,6 @@ model Message {
   @@index([createdAt])
 }
 
-model Post {
-  id        Int       @id @default(autoincrement())
-  title     String
-  content   String
-  board     String    @default("吹水台")
-  authorId  Int
-  likeCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  view      BigInt
-  comments  Comment[]
-  author    User      @relation("UserPosts", fields: [authorId], references: [id])
-
-  @@index([createdAt])
-}
-
 model Comment {
   id        Int      @id @default(autoincrement())
   content   String
@@ -80,4 +43,110 @@ model Comment {
   post      Post     @relation(fields: [postId], references: [id])
 
   @@index([createdAt])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  itemId    Int
+  itemType  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, itemId, itemType])
+}
+
+model Board {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now()) // 添加預設值
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  authorId  Int
+  likeCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  view      BigInt    @default(0)
+  boardId   Int
+  board     Board     @relation(fields: [boardId], references: [id])
+  comments  Comment[]
+  author    User      @relation("UserPosts", fields: [authorId], references: [id])
+
+  @@index([createdAt])
+}
+
+model FriendRequest {
+  id           Int      @id @default(autoincrement())
+  senderId     Int
+  receiverId   Int
+  status       String   @default("pending") // "pending", "accepted", "rejected"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sender       User     @relation("SentFriendRequests", fields: [senderId], references: [id])
+  receiver     User     @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+model UserRating {
+  id           Int      @id @default(autoincrement())
+  raterId      Int
+  ratedUserId  Int
+  rating       Int      // +1 或 -1
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  rater        User     @relation("GivenRatings", fields: [raterId], references: [id])
+  ratedUser    User     @relation("ReceivedRatings", fields: [ratedUserId], references: [id])
+
+  @@unique([raterId, ratedUserId])
+}
+
+model Block {
+  id           Int      @id @default(autoincrement())
+  blockerId    Int      // 封鎖者的 ID
+  blockedId    Int      // 被封鎖者的 ID
+  createdAt    DateTime @default(now())
+  blocker      User     @relation("Blocker", fields: [blockerId], references: [id])
+  blocked      User     @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  username            String    @unique
+  nickname            String    @unique
+  email               String    @unique
+  password            String
+  bio                 String?
+  gender              String    @default("undisclosed")
+  hobbies             String[]
+  followerCount       Int       @default(0)
+  followedCount       Int       @default(0)
+  followerIds         Int[]
+  followedIds         Int[]
+  friends             Int[]     @default([])
+  rating              Int       @default(0)
+  isRedFlagged        Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  resetPasswordToken  String?   
+  resetPasswordExpires DateTime? 
+  messages            Message[]
+  conversationsAsUser1 Conversation[] @relation("User1Conversations")
+  conversationsAsUser2 Conversation[] @relation("User2Conversations")
+  posts               Post[]    @relation("UserPosts")
+  comments            Comment[] @relation("UserComments")
+  likes               Like[]    
+  sentFriendRequests  FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  givenRatings        UserRating[] @relation("GivenRatings")
+  receivedRatings     UserRating[] @relation("ReceivedRatings")
+  blockedUsers        Block[]   @relation("Blocker")  // 新增：封鎖的用戶
+  blockedBy           Block[]   @relation("Blocked")  // 新增：被誰封鎖
 }

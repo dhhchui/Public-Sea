@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0",
+    "@prisma/client": "^6.7.0",
     "@radix-ui/react-avatar": "^1.1.7",
     "@radix-ui/react-collapsible": "^1.1.8",
     "@radix-ui/react-dialog": "^1.1.11",
@@ -20,11 +20,18 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tooltip": "^1.2.4",
     "argon2": "^0.43.0",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.503.0",
     "next": "15.3.1",
-    "prisma": "^6.6.0",
+    "nodemailer": "^6.10.1",
+    "prop-types": "^15.8.1",
+    "pusher": "^5.2.0",
+    "pusher-js": "^8.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.2.0"
@@ -36,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "postcss": "^8.5.3",
+    "prisma": "^6.7.0",
     "tailwindcss": "^4.1.4",
     "tw-animate-css": "^1.2.8"
   },

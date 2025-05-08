@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Backdrop } from "@/components/backdrop";
-import { RegisterForm } from "@/components/register-form"
-import { LoginForm } from "@/components/login-form"
-
+import { RegisterForm } from "@/components/register-form";
+import { LoginForm } from "@/components/login-form";
 import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
@@ -16,12 +15,6 @@ import {
   Sparkles,
   UserRoundPlus,
 } from "lucide-react";
-
-// import {
-//   Avatar,
-//   AvatarFallback,
-//   AvatarImage,
-// } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,62 +30,108 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function NavUser() {
   const router = useRouter();
   const { isMobile } = useSidebar();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [isRegisterOverlayOpen, setIsRegisterOverlayOpen] = useState(false);
+  const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleRegisterClick = () => {
-    router.push("/register");
-  };
+  useEffect(() => {
+    const handleUserLoggedIn = (event) => {
+      const userData = event.detail;
+      if (userData) {
+        // 確保 userId 是數字
+        if (typeof userData.userId === "string") {
+          userData.userId = parseInt(userData.userId);
+        }
+        setUser(userData);
+        setIsLoggedIn(true);
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("isLoggedIn", "true");
+      }
+    };
 
-  const handleLoginClick = () => {
-    router.push("/login");
-  };
+    window.addEventListener("userLoggedIn", handleUserLoggedIn);
 
-  const handleLogout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-  };
+    const storedUser = localStorage.getItem("user");
+    const storedLoginStatus = localStorage.getItem("isLoggedIn");
+    if (storedLoginStatus === "true" && storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      // 確保 userId 是數字
+      if (typeof parsedUser.userId === "string") {
+        parsedUser.userId = parseInt(parsedUser.userId);
+        localStorage.setItem("user", JSON.stringify(parsedUser));
+      }
+      setIsLoggedIn(true);
+      setUser(parsedUser);
+    }
 
-  const [isRegisterOverlayOpen, setIsRegisterOverlayOpen] = useState(false); // State to control overlay visibility
+    return () => {
+      window.removeEventListener("userLoggedIn", handleUserLoggedIn);
+    };
+  }, []);
 
   const toggleRegisterOverlay = () => {
     setIsRegisterOverlayOpen(!isRegisterOverlayOpen);
   };
 
-  const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false); // State to control overlay visibility
-
   const toggleLoginOverlay = () => {
     setIsLoginOverlayOpen(!isLoginOverlayOpen);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("isLoggedIn");
+    setUser(null);
+    setIsLoggedIn(false);
+    router.push("/");
+  };
+
+  const handleProfileClick = async () => {
+    if (!user?.userId || isNaN(user.userId)) { //  user.userId
+      setError("用戶 ID 無效");
+      console.error("User ID is invalid or missing:", user);
+      return;
+    }
+    try {
+      console.log(`Fetching user profile for ID: ${user.userId}`); //  user.userId
+      const res = await fetch(`/api/user-profile/${user.userId}`, { //  user.userId
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      console.log("API response status:", res.status);
+      if (res.ok) {
+        console.log("Redirecting to /user-profile/", user.userId); // user.userId
+        router.push(`/user-profile/${user.userId}`); // user.userId
+      } else {
+        const data = await res.json();
+        setError(data.message || "無法載入用戶資料");
+        console.error("API error response:", data);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      setError("載入用戶資料時發生錯誤");
+    }
   };
 
   if (!isLoggedIn) {
     return (
       <>
-        {/* <div className="flex gap-4 p-4">
-          <button
-            onClick={handleRegisterClick}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            註冊
-          </button>
-          <button
-            onClick={handleLoginClick}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-          >
-            登入
-          </button>
-        </div> */}
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">訪客</span>
                     <span className="truncate text-xs">尚未登入</span>
@@ -104,39 +143,24 @@ export function NavUser() {
                 className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
                 align="end"
-                sideOffset={4}>
-                {/* <DropdownMenuGroup>
-                      <DropdownMenuItem>
-                        <Sparkles />
-                        Upgrade to Pro
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator /> */}
+                sideOffset={4}
+              >
                 <DropdownMenuGroup>
-                  {/* <DropdownMenuItem>
-                        <BadgeCheck />
-                        Account
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <CreditCard />
-                        Billing
-                      </DropdownMenuItem> */}
                   <DropdownMenuItem onClick={toggleRegisterOverlay}>
-                    <UserRoundPlus />
-                    註冊
+                    <UserRoundPlus className="mr-2 h-4 w-4" />
+                    <span>註冊</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={toggleLoginOverlay}>
-                  <LogIn />
-                  登入
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span>登入</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {/* Overlay Login Form */}
         {isRegisterOverlayOpen && (
           <>
             <Backdrop onClick={toggleRegisterOverlay} />
@@ -144,94 +168,6 @@ export function NavUser() {
           </>
         )}
 
-        {/* Overlay Login Form */}
-        {isLoginOverlayOpen && (
-          <>
-            <Backdrop onClick={toggleLoginOverlay} />
-            <LoginForm />
-          </>
-        )
-        }
-      </>
-    );
-  } else {
-
-    return (
-      <>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                  {/* <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                </Avatar> */}
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user?.avatar} alt={user?.username} />
-                    <AvatarFallback className="rounded-lg">
-                      {user?.username?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
-                  </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
-                align="end"
-                sideOffset={4}>
-                {/* <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator /> */}
-                {/* <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <Sparkles />
-                    Upgrade to Pro
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator /> */}
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <BadgeCheck />
-                    帳號
-                  </DropdownMenuItem>
-                  {/* <DropdownMenuItem>
-                    <CreditCard />
-                    Billing
-                  </DropdownMenuItem> */}
-                  <DropdownMenuItem>
-                    <Bell />
-                    通知
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={toggleLoginOverlay}>
-                  <LogOut />
-                  登出
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
-        {/* Overlay Login Form */}
         {isLoginOverlayOpen && (
           <>
             <Backdrop onClick={toggleLoginOverlay} />
@@ -241,6 +177,79 @@ export function NavUser() {
       </>
     );
   }
+
+  return (
+    <>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user?.avatar} alt={user?.username} />
+                  <AvatarFallback className="rounded-lg">
+                    {user?.username?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">
+                    {user?.nickname || user?.username}
+                  </span>
+                  <span className="truncate text-xs">{user?.email}</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              side={isMobile ? "bottom" : "right"}
+              align="end"
+              sideOffset={4}
+            >
+              {error && (
+                <div className="px-2 py-1.5 text-sm text-red-500">{error}</div>
+              )}
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarImage src={user?.avatar} alt={user?.username} />
+                    <AvatarFallback className="rounded-lg">
+                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">
+                      {user?.nickname || user?.username}
+                    </span>
+                    <span className="truncate text-xs">{user?.email}</span>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={handleProfileClick}>
+                  <BadgeCheck className="mr-2 h-4 w-4" />
+                  <span>帳號</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Bell className="mr-2 h-4 w-4" />
+                  <span>通知</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>登出</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </>
+  );
 }
 
 // "use client";
