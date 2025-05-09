@@ -9,7 +9,7 @@ dotenv.config();
 
 export async function POST(request) {
   console.log("Received POST request to /api/login");
-  console.log("JWT_SECRET in API route:", process.env.JWT_SECRET);
+  console.log("JWT_SECRET in /api/login:", process.env.JWT_SECRET);
 
   // 檢查請求體
   let data;
@@ -71,7 +71,7 @@ export async function POST(request) {
         username: user.username,
         email: user.email,
         nickname: user.nickname,
-        token, // 添加 token
+        token,
       },
     }, { status: 200 });
   } catch (error) {

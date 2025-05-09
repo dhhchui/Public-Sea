@@ -9,8 +9,8 @@ export default function PostPage() {
   const [post, setPost] = useState(null);
   const [commentContent, setCommentContent] = useState("");
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState(""); // 新增成功提示狀態
-  const [isSubmitting, setIsSubmitting] = useState(false); // 新增提交狀態
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [likeStatuses, setLikeStatuses] = useState({});
   const router = useRouter();
   const params = useParams();
@@ -52,11 +52,18 @@ export default function PostPage() {
     const fetchLikeStatuses = async () => {
       try {
         const storedUser = localStorage.getItem("user");
-        if (!storedUser) return;
+        if (!storedUser) {
+          console.log("No user in localStorage, skipping like status fetch");
+          return;
+        }
 
         const user = JSON.parse(storedUser);
-        const token = user?.token;
-        if (!token) return;
+        const token = localStorage.getItem("token");
+        console.log("Token for like status fetch:", token);
+        if (!token) {
+          console.log("No token found, skipping like status fetch");
+          return;
+        }
 
         const items = [
           { itemId: post.id, itemType: "post" },
@@ -83,6 +90,9 @@ export default function PostPage() {
             return acc;
           }, {});
           setLikeStatuses(statusMap);
+          console.log("Like statuses fetched:", statusMap);
+        } else {
+          console.error("Failed to fetch like statuses:", res.status, await res.text());
         }
       } catch (error) {
         console.error("錯誤載入按讚狀態:", error);
@@ -95,20 +105,32 @@ export default function PostPage() {
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccessMessage(""); // 清空之前的成功訊息
-    setIsSubmitting(true); // 設置提交狀態為 true
+    setSuccessMessage("");
+    setIsSubmitting(true);
 
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
-      router.push("/login");
+      setError("請先登入");
+      setTimeout(() => router.push("/login"), 1000);
       setIsSubmitting(false);
       return;
     }
 
-    const user = JSON.parse(storedUser);
-    const token = user?.token;
+    let user;
+    try {
+      user = JSON.parse(storedUser);
+    } catch (err) {
+      console.error("解析 localStorage user 失敗:", err);
+      setError("用戶數據無效，請重新登入");
+      setTimeout(() => router.push("/login"), 1000);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const token = localStorage.getItem("token");
     if (!token) {
-      router.push("/login");
+      setError("未找到認證憑證，請重新登入");
+      setTimeout(() => router.push("/login"), 1000);
       setIsSubmitting(false);
       return;
     }
@@ -128,7 +150,7 @@ export default function PostPage() {
 
       const data = await res.json();
       if (res.ok) {
-        setCommentContent(""); // 清空輸入框
+        setCommentContent("");
         setPost((prev) => ({
           ...prev,
           comments: [...prev.comments, data.comment],
@@ -137,17 +159,16 @@ export default function PostPage() {
           ...prev,
           [`comment-${data.comment.id}`]: false,
         }));
-        setSuccessMessage("留言已提交！"); // 顯示成功提示
-        // 3 秒後隱藏成功訊息
+        setSuccessMessage("留言已提交！");
         setTimeout(() => setSuccessMessage(""), 3000);
       } else {
-        setError(data.message);
+        setError(data.message || "提交留言失敗");
       }
     } catch (error) {
       console.error("錯誤提交留言:", error);
       setError("提交留言時發生錯誤，請再試一次。");
     } finally {
-      setIsSubmitting(false); // 提交完成，恢復按鈕狀態
+      setIsSubmitting(false);
     }
   };
 
@@ -209,7 +230,7 @@ export default function PostPage() {
               className="w-full p-2 border rounded mb-2"
               rows="3"
               required
-              disabled={isSubmitting} // 提交期間禁用輸入框
+              disabled={isSubmitting}
             />
             <button
               type="submit"
@@ -218,7 +239,7 @@ export default function PostPage() {
                   ? "bg-blue-300 cursor-not-allowed"
                   : "bg-blue-500 hover:bg-blue-600"
               }`}
-              disabled={isSubmitting} // 提交期間禁用按鈕
+              disabled={isSubmitting}
             >
               {isSubmitting ? "提交中..." : "提交留言"}
             </button>
