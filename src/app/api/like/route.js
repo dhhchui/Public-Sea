@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   console.log("Received POST request to /api/like");
+  console.log("JWT_SECRET in /api/like:", process.env.JWT_SECRET);
 
   try {
     const authHeader = request.headers.get("Authorization");

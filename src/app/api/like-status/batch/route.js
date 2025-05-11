@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   console.log("Received POST request to /api/like-status/batch");
+  console.log("JWT_SECRET in /api/like-status/batch:", process.env.JWT_SECRET);
 
   try {
     const authHeader = request.headers.get("Authorization");

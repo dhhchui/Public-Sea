@@ -17,6 +17,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
+import SearchBar from "@/components/SearchBar";
+import ChatModal from "@/components/ChatModal";
 
 const iconMap = {
   "新聞": Newspaper,
@@ -30,6 +32,7 @@ export function AppSidebar({ ...props }) {
   const router = useRouter();
   const [boards, setBoards] = useState([]);
   const [items, setItems] = useState([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     const fetchBoards = async () => {
@@ -86,40 +89,42 @@ export function AppSidebar({ ...props }) {
   };
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" onClick={() => router.push("/")}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <ShipWheel className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">公海</span>
-                <span className="truncate text-xs">社交討論區</span>
-              </div>
+    <>
+      <Sidebar collapsible="offcanvas" {...props}>
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" onClick={() => router.push("/")}>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <ShipWheel className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">公海</span>
+                  <span className="truncate text-xs">社交討論區</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SearchBar />
+            </SidebarMenuItem>
+            <SidebarMenuButton tooltip="對話" onClick={() => setIsChatOpen(true)}>
+              <MessageSquareText />
+              <span>對話</span>
             </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <SidebarMenuButton tooltip="搜尋">
-          <Search />
-          <span>搜尋</span>
-        </SidebarMenuButton>
-        <SidebarMenuButton tooltip="對話">
-          <MessageSquareText />
-          <span>對話</span>
-        </SidebarMenuButton>
-        <SidebarMenuButton tooltip="返回首頁" onClick={handleHomeRedirect}>
-          <span>返回首頁</span>
-        </SidebarMenuButton>
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={items} />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+            <SidebarMenuButton tooltip="返回首頁" onClick={handleHomeRedirect}>
+              <span>返回首頁</span>
+            </SidebarMenuButton>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <NavMain items={items} />
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+    </>
   );
 }

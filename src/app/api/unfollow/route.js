@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export async function POST(request) {
-  console.log("Received POST request to /api/follow");
+  console.log("Received POST request to /api/unfollow");
 
   try {
     // 驗證 JWT
@@ -71,11 +71,11 @@ export async function POST(request) {
       );
     }
 
-    // 檢查用戶是否試圖關注自己
+    // 檢查用戶是否試圖取消關注自己
     if (targetUserIdInt === decoded.userId) {
-      console.log("Cannot follow yourself");
+      console.log("Cannot unfollow yourself");
       return new Response(
-        JSON.stringify({ message: "You cannot follow yourself" }),
+        JSON.stringify({ message: "You cannot unfollow yourself" }),
         { status: 400 }
       );
     }
@@ -89,10 +89,10 @@ export async function POST(request) {
     const currentUserFollowedIds = Array.isArray(currentUser.followedIds)
       ? currentUser.followedIds
       : [];
-    if (currentUserFollowedIds.includes(targetUserIdInt)) {
-      console.log("Already following this user");
+    if (!currentUserFollowedIds.includes(targetUserIdInt)) {
+      console.log("Not following this user");
       return new Response(
-        JSON.stringify({ message: "You are already following this user" }),
+        JSON.stringify({ message: "You are not following this user" }),
         { status: 400 }
       );
     }
@@ -113,10 +113,10 @@ export async function POST(request) {
         where: { id: decoded.userId },
         data: {
           followedIds: {
-            set: [...currentUserFollowedIds, targetUserIdInt],
+            set: currentUserFollowedIds.filter((id) => id !== targetUserIdInt),
           },
           followedCount: {
-            set: currentUserFollowedCount + 1,
+            set: currentUserFollowedCount - 1,
           },
         },
       }),
@@ -125,22 +125,22 @@ export async function POST(request) {
         where: { id: targetUserIdInt },
         data: {
           followerIds: {
-            set: [...targetUserFollowerIds, decoded.userId],
+            set: targetUserFollowerIds.filter((id) => id !== decoded.userId),
           },
           followerCount: {
-            set: targetUserFollowerCount + 1,
+            set: targetUserFollowerCount - 1,
           },
         },
       }),
     ]);
 
-    console.log("User followed successfully");
+    console.log("User unfollowed successfully");
     return new Response(
-      JSON.stringify({ message: "User followed successfully" }),
+      JSON.stringify({ message: "User unfollowed successfully" }),
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in POST /api/follow:", error);
+    console.error("Error in POST /api/unfollow:", error);
     if (error.name === "JsonWebTokenError") {
       console.log("Invalid token");
       return new Response(JSON.stringify({ message: "Invalid token" }), {
@@ -151,5 +151,7 @@ export async function POST(request) {
       JSON.stringify({ message: "Server error: " + error.message }),
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

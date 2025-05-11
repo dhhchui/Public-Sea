@@ -46,26 +46,33 @@ export function LoginForm({ className, ...props }) {
 
       if (response.ok) {
         // 將 user 和 token 存入 localStorage
-        localStorage.setItem("user", JSON.stringify(data.user));
+        const user = {
+          userId: data.user.userId,
+          username: data.user.username,
+          email: data.user.email,
+          nickname: data.user.nickname,
+        };
+        localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("token", data.user.token);
-        console.log("Stored user in localStorage:", data.user);
+        console.log("Stored user in localStorage:", user);
         console.log("Stored token in localStorage:", data.user.token);
         setMessage({
           text: "登入成功！即將跳轉...",
           type: "success",
         });
         const userLoggedInEvent = new CustomEvent("userLoggedIn", {
-          detail: data.user,
+          detail: user,
         });
         window.dispatchEvent(userLoggedInEvent);
         setTimeout(() => router.push("/"), 1500);
       } else {
         setMessage({
-          text: data.message || "電子郵件或密碼錯誤",
+          text: data.message || "用戶名/電子郵件或密碼錯誤",
           type: "error",
         });
       }
     } catch (error) {
+      console.error("Error during login:", error);
       setMessage({
         text: "網絡錯誤，請稍後再試",
         type: "error",
