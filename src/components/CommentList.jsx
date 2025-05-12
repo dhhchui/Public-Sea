@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -22,24 +21,34 @@ import {
 } from '@/components/ui/select';
 
 export default function CommentList({
-  postId,
   comments: initialComments,
   likeStatuses,
 }) {
   const [comments, setComments] = useState(initialComments || []);
   const router = useRouter();
+  const sortComments = (order) => {
+    const sortedComments = [...comments].sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return order === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    setComments(sortedComments);
+  };
 
   return (
     <div className='flex flex-col gap-4'>
       <div className='flex items-center justify-between'>
         <p className='text-lg font-bold'>留言</p>
-        <Select defaultValue='light'>
+        <Select
+          onValueChange={(value) => sortComments(value)}
+          defaultValue='desc'
+        >
           <SelectTrigger className='w-[180px]'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='light'>由新至舊</SelectItem>
-            <SelectItem value='dark'>由舊至新</SelectItem>
+            <SelectItem value='desc'>由新至舊</SelectItem>
+            <SelectItem value='asc'>由舊至新</SelectItem>
           </SelectContent>
         </Select>
       </div>
