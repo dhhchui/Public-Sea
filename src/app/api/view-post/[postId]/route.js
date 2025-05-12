@@ -1,8 +1,17 @@
 import prisma from "../../../../lib/prisma";
 import jwt from "jsonwebtoken";
+import { Redis } from "@upstash/redis";
+import { NextResponse } from "next/server";
+
+// 初始化 Upstash Redis 客戶端
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 export async function GET(request, { params }) {
   console.log("Received GET request to /api/view-post/[postId]");
+  const startTime = performance.now(); // 記錄請求開始時間
 
   try {
     console.log("DATABASE_URL:", process.env.DATABASE_URL);
@@ -35,6 +44,36 @@ export async function GET(request, { params }) {
       });
     }
 
+    // 定義快取鍵，包含 postId 和 userId
+    const cacheKey = `post:view:${postIdInt}:user:${userId || "anonymous"}`;
+    console.log("Checking cache for key:", cacheKey);
+
+    // 嘗試從 Redis 獲取快取數據
+    const cachedPost = await redis.get(cacheKey);
+    if (cachedPost) {
+      // 從快取中獲取數據後，獨立更新瀏覽次數
+      try {
+        await prisma.post.update({
+          where: { id: postIdInt },
+          data: {
+            view: { increment: 1 },
+          },
+        });
+      } catch (dbError) {
+        console.error("Database error while updating view count:", dbError);
+      }
+
+      const endTime = performance.now();
+      console.log(
+        `Returning cached post, response time: ${(endTime - startTime).toFixed(
+          2
+        )}ms`
+      );
+      return NextResponse.json({ post: cachedPost }, { status: 200 });
+    }
+
+    // 如果快取不存在，查詢資料庫
+    console.log("Cache miss, fetching post from database");
     let blockedUsers = [];
     let usersWhoBlockedMe = [];
     if (userId) {
@@ -63,6 +102,7 @@ export async function GET(request, { params }) {
 
     let post;
     try {
+      const dbStartTime = performance.now();
       post = await prisma.post.findUnique({
         where: { id: postIdInt },
         include: {
@@ -93,6 +133,10 @@ export async function GET(request, { params }) {
           },
         },
       });
+      const dbEndTime = performance.now();
+      console.log(
+        `Database query time: ${(dbEndTime - dbStartTime).toFixed(2)}ms`
+      );
     } catch (dbError) {
       console.error("Database error while fetching post:", dbError);
       return new Response(
@@ -119,7 +163,9 @@ export async function GET(request, { params }) {
         postBoard: post.board.name,
       });
       return new Response(
-        JSON.stringify({ message: "Post does not belong to the requested board" }),
+        JSON.stringify({
+          message: "Post does not belong to the requested board",
+        }),
         { status: 404 }
       );
     }
@@ -153,6 +199,7 @@ export async function GET(request, { params }) {
         .filter((comment) => comment !== null);
     }
 
+    // 更新瀏覽次數
     try {
       await prisma.post.update({
         where: { id: postIdInt },
@@ -167,12 +214,20 @@ export async function GET(request, { params }) {
     const serializedPost = {
       ...post,
       view: post.view.toString(),
-      board: undefined, 
+      board: undefined,
     };
 
-    return new Response(JSON.stringify({ post: serializedPost }), {
-      status: 200 },
+    // 將數據儲存到快取，快取 5 分鐘（300秒）
+    await redis.set(cacheKey, serializedPost, { ex: 300 });
+    console.log("Post cached successfully");
+
+    const endTime = performance.now();
+    console.log(
+      `Post retrieved, total response time: ${(endTime - startTime).toFixed(
+        2
+      )}ms`
     );
+    return NextResponse.json({ post: serializedPost }, { status: 200 });
   } catch (error) {
     console.error("Error in GET /api/view-post/[postId]:", error);
     return new Response(

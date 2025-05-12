@@ -164,16 +164,20 @@ export async function POST(request) {
       createdAt: savedMessage.createdAt.toISOString(),
     };
 
-    await prisma.notification.create({
-      data: {
-        userId: receiverIdInt,
-        type: "pm",
-        relatedId: conversation.id,
-        senderId: senderId,
-        isRead: false,
+    // 創建通知，存入 prisma.notification
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify({
+        userId: receiverIdInt,
+        message: `${sender.nickname} 向你發送了一條新消息`,
+      }),
     });
 
+    // Pusher 推送通知
     await pusher.trigger(`user-${receiverIdInt}`, "notification", {
       type: "pm",
       relatedId: conversation.id,
@@ -181,6 +185,7 @@ export async function POST(request) {
       message: `${sender.nickname} 向你發送了一個新的 PM`,
     });
 
+    // 推送新消息到對話
     await pusher.trigger(
       `conversation-${conversation.id}`,
       "new-message",

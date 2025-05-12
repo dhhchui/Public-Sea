@@ -2,30 +2,32 @@ import { notFound } from "next/navigation";
 import BoardContent from "@/components/BoardContent";
 
 const categoryMap = {
-  "吹水台": "其他",
-  "管理台": "其他",
-  "學術台": "興趣",
-  "時事台": "新聞",
-  "財經台": "新聞",
-  "手機台": "科技",
-  "電腦台": "科技",
-  "飲食台": "生活",
-  "上班台": "生活",
-  "旅遊台": "生活",
-  "校園台": "生活",
-  "體育台": "興趣",
-  "遊戲台": "興趣",
-  "影視台": "興趣",
-  "音樂台": "興趣",
+  吹水台: "其他",
+  管理台: "其他",
+  學術台: "興趣",
+  時事台: "新聞",
+  財經台: "新聞",
+  手機台: "科技",
+  電腦台: "科技",
+  飲食台: "生活",
+  上班台: "生活",
+  旅遊台: "生活",
+  校園台: "生活",
+  體育台: "興趣",
+  遊戲台: "興趣",
+  影視台: "興趣",
+  音樂台: "興趣",
 };
 
 export async function generateStaticParams() {
   try {
+    // 使用 Next.js fetch 快取，設置 revalidate 為 24 小時（86400秒）
     const res = await fetch("http://localhost:3000/api/boards", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      next: { revalidate: 86400 }, // 快取 24 小時
     });
 
     if (!res.ok) {
@@ -46,15 +48,18 @@ export async function generateStaticParams() {
 }
 
 export default async function BoardPage({ params, searchParams }) {
-  const { board } = params;
+  // 使用 await 解構 params
+  const { board } = await params;
   const decodedBoard = decodeURIComponent(board); // 解碼 URL 中的中文名稱
 
   try {
+    // 使用 Next.js fetch 快取，設置 revalidate 為 24 小時（86400秒）
     const res = await fetch("http://localhost:3000/api/boards", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      next: { revalidate: 86400 }, // 快取 24 小時
     });
 
     if (!res.ok) {

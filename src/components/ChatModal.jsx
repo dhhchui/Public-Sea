@@ -12,14 +12,49 @@ import { Input } from "@/components/ui/input";
 import ConversationList from "@/components/ConversationList";
 import MessageInput from "@/components/MessageInput";
 import Pusher from "pusher-js";
+import useSWR from "swr";
+
+// 自訂 fetcher 函數給 useSWR 使用
+const fetcher = async (url) => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("請先登入");
+  }
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const contentType = res.headers.get("content-type");
+  const responseText = await res.text();
+  console.log(`Response Content-Type for ${url}:`, contentType);
+  console.log(`Response body for ${url}:`, responseText);
+
+  try {
+    const data = JSON.parse(responseText);
+    if (!res.ok) {
+      throw new Error(data.message || `無法載入數據 from ${url}`);
+    }
+    return data;
+  } catch (err) {
+    console.error(`Unexpected response format for ${url}:`, responseText);
+    throw new Error("伺服器響應格式錯誤");
+  }
+};
 
 export default function ChatModal({ isOpen, onClose }) {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newConversationUser, setNewConversationUser] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState("");
   const [pusher, setPusher] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   // 初始化 Pusher
   useEffect(() => {
@@ -51,108 +86,73 @@ export default function ChatModal({ isOpen, onClose }) {
     };
   }, [pusher, selectedConversation]);
 
-  // 載入對話列表
+  // 獲取當前用戶 ID
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchConversations = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("請先登入");
-          return;
-        }
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+    const currentUserId = userData?.userId ? parseInt(userData.userId) : null;
+    if (!currentUserId) {
+      setError("無法獲取用戶資訊，請重新登入");
+      onClose();
+      return;
+    }
+    setUserId(currentUserId);
+  }, [isOpen, onClose]);
 
-        const res = await fetch("/api/conversations", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  // 使用 useSWR 快取對話列表
+  const { data: conversationsData, error: conversationsError } = useSWR(
+    userId ? `/api/conversations` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false, // 不自動在焦點時重新驗證
+      dedupingInterval: 86400000, // 快取 24 小時（86400秒）
+      onError: (err) => {
+        setError(err.message || "載入對話列表時發生錯誤");
+        onClose();
+      },
+    }
+  );
 
-        const contentType = res.headers.get("content-type");
-        const responseText = await res.text();
-        console.log("Response Content-Type for /api/conversations:", contentType);
+  useEffect(() => {
+    if (conversationsData) {
+      setConversations(conversationsData.conversations || []);
+      setError("");
+    }
+  }, [conversationsData]);
 
-        try {
-          const data = JSON.parse(responseText);
-          if (res.ok) {
-            setConversations(data.conversations || []);
-            setError("");
-          } else {
-            setError(data.message || "無法載入對話列表");
-          }
-        } catch (err) {
-          console.error("Unexpected response format:", responseText);
-          setError("伺服器響應格式錯誤");
-          return;
-        }
-      } catch (err) {
-        console.error("Error fetching conversations:", err);
-        setError("載入對話列表時發生錯誤");
-      }
-    };
+  // 使用 useSWR 快取消息
+  const { data: messagesData, error: messagesError } = useSWR(
+    selectedConversation
+      ? `/api/conversation/${selectedConversation.id}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: false, // 不自動在焦點時重新驗證
+      dedupingInterval: 300000, // 快取 5 分鐘（300秒）
+      onError: (err) => {
+        setError(err.message || "載入訊息時發生錯誤");
+      },
+    }
+  );
 
-    fetchConversations();
-  }, [isOpen]);
-
-  // 載入消息
   useEffect(() => {
     if (!selectedConversation) {
       setMessages([]);
       return;
     }
 
-    const fetchMessages = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("請先登入");
-          return;
-        }
+    if (messagesData) {
+      setMessages(messagesData.conversation?.messages || []);
+      setError("");
+    }
+  }, [messagesData, selectedConversation]);
 
-        console.log(`Fetching messages for conversation ID: ${selectedConversation.id}`);
-        const res = await fetch(`/api/conversation/${selectedConversation.id}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const contentType = res.headers.get("content-type");
-        const responseText = await res.text();
-        console.log("Response Content-Type for /api/conversation/[conversationId]:", contentType);
-        console.log("Response body for /api/conversation/[conversationId]:", responseText);
-
-        try {
-          const data = JSON.parse(responseText);
-          if (res.ok) {
-            console.log("Messages fetched:", data.conversation.messages || []);
-            setMessages(data.conversation.messages || []);
-            setError("");
-          } else {
-            setError(data.message || "無法載入訊息");
-          }
-        } catch (err) {
-          console.error("Unexpected response format:", responseText);
-          setError("伺服器響應格式錯誤");
-          return;
-        }
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-        setError("載入訊息時發生錯誤");
-      }
-    };
-
-    fetchMessages();
-  }, [selectedConversation]);
-
-  // 開始新對話
-  const handleStartNewConversation = async () => {
-    if (!newConversationUser) {
-      setError("請輸入用戶名稱");
+  // 搜索用戶（模擬搜索）
+  const handleSearchUsers = async () => {
+    if (!newConversationUser.trim()) {
+      setError("請輸入電子郵件或暱稱");
+      setSearchResults([]);
       return;
     }
 
@@ -160,8 +160,13 @@ export default function ChatModal({ isOpen, onClose }) {
       const token = localStorage.getItem("token");
       if (!token) {
         setError("請先登入");
+        onClose();
         return;
       }
+
+      console.log("Sending search request:", {
+        emailOrNickname: newConversationUser,
+      });
 
       const res = await fetch("/api/conversations", {
         method: "POST",
@@ -169,22 +174,83 @@ export default function ChatModal({ isOpen, onClose }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ username: newConversationUser }),
+        body: JSON.stringify({ emailOrNickname: newConversationUser }),
       });
 
       const contentType = res.headers.get("content-type");
       const responseText = await res.text();
-      console.log("Response Content-Type for /api/conversations (POST):", contentType);
+      console.log(
+        "Response Content-Type for /api/conversations (POST):",
+        contentType
+      );
       console.log("Response body for /api/conversations (POST):", responseText);
 
       try {
         const data = JSON.parse(responseText);
         if (res.ok) {
-          const newConversation = { ...data.conversation, messages: [] }; // 確保新對話包含空 messages 陣列
-          setConversations([...conversations, newConversation]);
+          setSearchResults(data.users || []);
+          setError("");
+        } else {
+          setError(data.message || "無法找到用戶");
+          setSearchResults([]);
+        }
+      } catch (err) {
+        console.error("Unexpected response format:", responseText);
+        setError("伺服器響應格式錯誤");
+        setSearchResults([]);
+        return;
+      }
+    } catch (err) {
+      console.error("Error searching users:", err);
+      setError("搜索用戶時發生錯誤：" + err.message);
+      setSearchResults([]);
+    }
+  };
+
+  // 選擇用戶並開始新對話
+  const handleStartNewConversation = async (targetUserId) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("請先登入");
+        onClose();
+        return;
+      }
+
+      console.log("Sending new conversation request:", { targetUserId });
+
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ targetUserId }),
+      });
+
+      const contentType = res.headers.get("content-type");
+      const responseText = await res.text();
+      console.log(
+        "Response Content-Type for /api/conversations (POST):",
+        contentType
+      );
+      console.log("Response body for /api/conversations (POST):", responseText);
+
+      try {
+        const data = JSON.parse(responseText);
+        if (res.ok) {
+          const newConversation = { ...data.conversation, messages: [] };
+          setConversations((prev) => {
+            const exists = prev.find((conv) => conv.id === newConversation.id);
+            if (exists) {
+              return prev;
+            }
+            return [newConversation, ...prev];
+          });
           setSelectedConversation(newConversation);
           setNewConversationUser("");
-          setMessages([]); // 重置消息列表
+          setSearchResults([]);
+          setMessages([]);
           setError("");
         } else {
           setError(data.message || "無法創建新對話");
@@ -196,7 +262,7 @@ export default function ChatModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error("Error starting new conversation:", err);
-      setError("創建新對話時發生錯誤");
+      setError("創建新對話時發生錯誤：" + err.message);
     }
   };
 
@@ -237,7 +303,6 @@ export default function ChatModal({ isOpen, onClose }) {
       try {
         const data = JSON.parse(responseText);
         if (res.ok) {
-          // 新版不返回消息對象，需等待 Pusher 推送
           setError("");
         } else {
           setError(data.message || "無法發送訊息");
@@ -249,7 +314,7 @@ export default function ChatModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      setError("發送訊息時發生錯誤");
+      setError("發送訊息時發生錯誤：" + err.message);
     }
   };
 
@@ -259,27 +324,51 @@ export default function ChatModal({ isOpen, onClose }) {
         {/* 左側：對話列表 */}
         <div className="w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col">
           <DialogHeader className="p-4 bg-white border-b border-slate-200">
-            <DialogTitle className="text-lg font-semibold text-slate-800">對話</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-slate-800">
+              對話
+            </DialogTitle>
           </DialogHeader>
           <div className="p-4 flex-1 overflow-y-auto">
             <div className="flex flex-col gap-2 mb-4">
               <Input
-                placeholder="輸入用戶名稱開始新對話"
+                placeholder="輸入電子郵件或暱稱開始新對話"
                 value={newConversationUser}
                 onChange={(e) => setNewConversationUser(e.target.value)}
                 className="w-full rounded-lg border-slate-300 focus:ring-2 focus:ring-slate-500"
               />
               <Button
-                onClick={handleStartNewConversation}
+                onClick={handleSearchUsers}
                 className="bg-slate-600 text-white hover:bg-slate-700 rounded-lg w-full"
               >
                 搜尋用戶
               </Button>
             </div>
             {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+            {searchResults.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-700 mb-2">
+                  搜索結果
+                </p>
+                <div className="space-y-2">
+                  {searchResults.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-2 border rounded cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleStartNewConversation(user.id)}
+                    >
+                      <p className="font-medium">{user.nickname}</p>
+                      <p className="text-sm text-slate-500">{user.email}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <ConversationList
               conversations={conversations}
-              onSelectConversation={setSelectedConversation}
+              onSelectConversation={(conv) => {
+                setSelectedConversation(conv);
+                setSearchResults([]);
+              }}
               selectedConversationId={selectedConversation?.id}
             />
           </div>
@@ -295,7 +384,8 @@ export default function ChatModal({ isOpen, onClose }) {
               <DialogHeader className="p-4 bg-white border-b border-slate-200 flex items-center">
                 <DialogTitle className="text-lg font-semibold text-slate-800">
                   與{" "}
-                  {selectedConversation.user1Id === JSON.parse(localStorage.getItem("user"))?.userId
+                  {selectedConversation.user1Id ===
+                  JSON.parse(localStorage.getItem("user"))?.userId
                     ? selectedConversation.user2.nickname
                     : selectedConversation.user1.nickname}
                 </DialogTitle>
@@ -309,11 +399,14 @@ export default function ChatModal({ isOpen, onClose }) {
                 ) : (
                   messages.map((message) => {
                     const isOwnMessage =
-                      message.senderId === JSON.parse(localStorage.getItem("user"))?.userId;
+                      message.senderId ===
+                      JSON.parse(localStorage.getItem("user"))?.userId;
                     return (
                       <div
                         key={message.id}
-                        className={`mb-3 flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                        className={`mb-3 flex ${
+                          isOwnMessage ? "justify-end" : "justify-start"
+                        }`}
                       >
                         <div
                           className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${
@@ -324,10 +417,15 @@ export default function ChatModal({ isOpen, onClose }) {
                         >
                           <p>{message.content}</p>
                           <p className="text-xs text-slate-500 mt-1 text-right">
-                            {new Date(message.createdAt).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {new Date(message.createdAt).toLocaleString(
+                              "zh-HK",
+                              {
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
                           </p>
                           <div
                             className={`absolute top-0 w-4 h-4 ${

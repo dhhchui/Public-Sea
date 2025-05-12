@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ProfileErrorAndLoading from "@/components/ProfileErrorAndLoading";
-import ProfileEditForm from "@/components/ProfileEditForm";
+import ProfileEditForm from "@/components/ProfileErrorAndLoading";
 import ProfileDisplay from "@/components/ProfileDisplay";
 import UserList from "@/components/UserList";
 
