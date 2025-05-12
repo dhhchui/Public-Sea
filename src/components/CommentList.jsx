@@ -1,8 +1,25 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import LikeButton from "./LikeButton";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import LikeButton from './LikeButton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function CommentList({
   postId,
@@ -13,32 +30,48 @@ export default function CommentList({
   const router = useRouter();
 
   return (
-    <div className="mt-4">
-      <h3 className="text-lg font-bold mb-2">留言</h3>
+    <div className='flex flex-col gap-4'>
+      <div className='flex items-center justify-between'>
+        <p className='text-lg font-bold'>留言</p>
+        <Select defaultValue='light'>
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='light'>由新至舊</SelectItem>
+            <SelectItem value='dark'>由舊至新</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       {comments.length === 0 ? (
-        <p className="text-gray-500">尚未有留言。</p>
+        <p>尚未有留言。</p>
       ) : (
         comments.map((comment) => (
-          <div key={comment.id} className="p-2 border-b">
-            <span
-              onClick={() => router.push(`/user-profile/${comment.authorId}`)}
-              className="cursor-pointer text-blue-500 hover:underline"
-            >
-              {comment.author.username}
-            </span>
-            <p>{comment.content}</p>
-            <p className="text-gray-500 text-sm">
-              {new Date(comment.createdAt).toLocaleString()}
-            </p>
-            <div className="flex items-center mt-1">
+          <Card key={comment.id}>
+            <CardHeader>
+              <Badge
+                variant='outline'
+                className='cursor-pointer'
+                onClick={() => router.push(`/user-profile/${comment.authorId}`)}
+              >
+                {comment.author.username}
+              </Badge>
+              <CardDescription>
+                {new Date(comment.createdAt).toLocaleString()}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className='whitespace-pre-line'>{comment.content}</p>
+            </CardContent>
+            <CardFooter>
               <LikeButton
                 itemId={comment.id}
-                itemType="comment"
+                itemType='comment'
                 initialLikeCount={comment.likeCount}
                 initialLiked={likeStatuses[`comment-${comment.id}`] || false}
               />
-            </div>
-          </div>
+            </CardFooter>
+          </Card>
         ))
       )}
     </div>
