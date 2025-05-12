@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function RatingModal({ ratedUserId }) {
+export default function RatingModal({ ratedUserId, onRatingSubmitted }) {
   const [hasRated, setHasRated] = useState(false);
   const [rating, setRating] = useState(null);
   const [error, setError] = useState("");
@@ -91,6 +91,21 @@ export default function RatingModal({ ratedUserId }) {
           setRating(ratingValue);
           setSuccessMessage(`評分提交成功！新評分總和：${data.newRating}`);
           setTimeout(() => setSuccessMessage(""), 3000);
+
+          // 觸發紅旗檢查
+          await fetch("/api/check-redflag", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ targetUserId: ratedUserId }),
+          });
+
+          // 通知 UserProfile 更新
+          if (onRatingSubmitted) {
+            onRatingSubmitted();
+          }
         } else {
           setError(data.message || "無法提交評分");
         }

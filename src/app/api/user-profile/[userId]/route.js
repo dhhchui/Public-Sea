@@ -11,6 +11,7 @@ export async function GET(request, { params }) {
       console.log("Invalid user ID");
       return new Response(JSON.stringify({ message: "Invalid user ID" }), {
         status: 400,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -26,8 +27,8 @@ export async function GET(request, { params }) {
         followedCount: true,
         followerIds: true,
         followedIds: true,
-        rating: true, // 已包含
-        isRedFlagged: true, // 已包含
+        rating: true,
+        isRedFlagged: true,
       },
     });
 
@@ -35,15 +36,22 @@ export async function GET(request, { params }) {
       console.log("User not found");
       return new Response(JSON.stringify({ message: "User not found" }), {
         status: 404,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ user }), { status: 200 });
+    return new Response(JSON.stringify({ user }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in GET /api/user-profile/[userId]:", error);
     return new Response(
       JSON.stringify({ message: "Server error: " + error.message }),
-      { status: 500 }
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

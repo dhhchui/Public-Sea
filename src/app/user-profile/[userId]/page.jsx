@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import UserList from "@/components/UserList";
-import RatingComponent from "@/components/RatingModal"; // 新增
+import RatingModal from "@/components/RatingModal";
 
 export default function UserProfile() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function UserProfile() {
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-        setError("載入用戶資料時發生錯誤，可能是伺服器或資料庫連線問題。");
+        setError("載入用戶資料時發生錯誤");
       }
     };
 
@@ -114,7 +114,7 @@ export default function UserProfile() {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      setError("更新個人資料時發生錯誤，可能是伺服器或資料庫連線問題。");
+      setError("更新個人資料時發生錯誤");
     }
   };
 
@@ -245,6 +245,11 @@ export default function UserProfile() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6 bg-gray-50 rounded-b-xl">
+            {user.isRedFlagged && (
+              <p className="text-red-500 text-sm font-medium">
+                注意：此用戶帳戶已被限制
+              </p>
+            )}
             {isEditing ? (
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div>
@@ -349,7 +354,9 @@ export default function UserProfile() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-lg font-medium text-gray-700">評分: {user.rating || 0}</p>
+                    <p className={`text-lg font-medium ${user.rating < 0 ? "text-red-600" : "text-gray-700"}`}>
+                      評分: {user.rating || 0}
+                    </p>
                   </div>
                   <div className="flex gap-4">
                     <div>
@@ -384,10 +391,27 @@ export default function UserProfile() {
                       <Button
                         onClick={isFollowing ? handleUnfollow : handleFollow}
                         className={`${isFollowing ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"} text-white font-semibold py-2 px-4 rounded-md`}
+                        disabled={user.isRedFlagged}
                       >
                         {isFollowing ? "Unfollow" : "Follow"}
                       </Button>
-                      <RatingComponent ratedUserId={parseInt(userId)} />
+                      <RatingModal ratedUserId={parseInt(userId)} onRatingSubmitted={() => {
+                        // 重新載入用戶資料以更新紅旗狀態
+                        fetch(`/api/user-profile/${userId}`, {
+                          method: "GET",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+                          },
+                        })
+                          .then((res) => res.json())
+                          .then((data) => {
+                            if (res.ok) {
+                              setUser(data.user);
+                            }
+                          })
+                          .catch((err) => console.error("Error refreshing user:", err));
+                      }} />
                     </>
                   )}
                   {parseInt(userId) === JSON.parse(localStorage.getItem("user") || "{}")?.userId && (

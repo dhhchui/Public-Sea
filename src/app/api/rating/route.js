@@ -102,7 +102,8 @@ export async function POST(request) {
     });
 
     // 檢查是否需要標記為紅旗用戶
-    await fetch("/api/check-redflag", {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const response = await fetch(`${baseUrl}/api/check-redflag`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,6 +111,10 @@ export async function POST(request) {
       },
       body: JSON.stringify({ targetUserId: ratedUserIdInt }),
     });
+
+    if (!response.ok) {
+      console.error("Failed to check redflag status:", await response.text());
+    }
 
     return new Response(
       JSON.stringify({
