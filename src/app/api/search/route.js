@@ -48,15 +48,14 @@ export async function POST(request) {
       );
     }
 
-    // 模糊搜尋用戶：匹配 nickname 或 email，過濾掉自己
-    console.log("Searching users with query:", query);
+    // 模糊搜尋用戶：匹配 nickname 或 email
+    console.log(`Searching users with query: "${query}"`);
     const users = await prisma.user.findMany({
       where: {
         OR: [
           { nickname: { contains: query, mode: "insensitive" } },
           { email: { contains: query, mode: "insensitive" } },
         ],
-        AND: { id: { not: decoded.userId } },
       },
       select: {
         id: true,
@@ -67,7 +66,7 @@ export async function POST(request) {
     console.log("Found users:", users);
 
     // 模糊搜尋話題（貼文）：匹配 title 或 content
-    console.log("Searching posts with query:", query);
+    console.log(`Searching posts with query: "${query}"`);
     const posts = await prisma.post.findMany({
       where: {
         OR: [
@@ -88,14 +87,6 @@ export async function POST(request) {
       take: 5,
     });
     console.log("Found posts:", posts);
-
-    if (users.length === 0 && posts.length === 0) {
-      console.log("No matching users or posts found");
-      return new Response(
-        JSON.stringify({ message: "No matching users or posts found" }),
-        { status: 404 }
-      );
-    }
 
     return new Response(JSON.stringify({ users, posts }), { status: 200 });
   } catch (error) {

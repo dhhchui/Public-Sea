@@ -135,11 +135,11 @@ export function FriendPanel({ user, isOpen, onClose }) {
     <>
       <Backdrop onClick={onClose} />
       <div className="fixed inset-0 flex items-center justify-center z-60">
-        <Card className="w-full max-w-lg bg-white opacity-100 shadow-lg backdrop-blur-none">
+        <Card className="w-full max-w-2xl bg-white opacity-100 shadow-lg">
           <CardHeader>
             <CardTitle>好友管理</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-black">
+          <CardContent className="space-y-4 text-black p-6">
             <div>
               <h3 className="font-semibold">我的好友</h3>
               {isLoading ? (

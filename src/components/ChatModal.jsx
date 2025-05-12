@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ConversationList from "@/components/ConversationList";
 import MessageInput from "@/components/MessageInput";
+import Pusher from "pusher-js";
 
 export default function ChatModal({ isOpen, onClose }) {
   const [conversations, setConversations] = useState([]);
@@ -18,7 +19,39 @@ export default function ChatModal({ isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newConversationUser, setNewConversationUser] = useState("");
   const [error, setError] = useState("");
+  const [pusher, setPusher] = useState(null);
 
+  // 初始化 Pusher
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const pusherClient = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+      encrypted: true,
+    });
+    setPusher(pusherClient);
+
+    return () => {
+      pusherClient.disconnect();
+    };
+  }, [isOpen]);
+
+  // 監聽 Pusher 消息
+  useEffect(() => {
+    if (!pusher || !selectedConversation) return;
+
+    const channel = pusher.subscribe(`conversation-${selectedConversation.id}`);
+    channel.bind("new-message", (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
+  }, [pusher, selectedConversation]);
+
+  // 載入對話列表
   useEffect(() => {
     if (!isOpen) return;
 
@@ -39,18 +72,21 @@ export default function ChatModal({ isOpen, onClose }) {
         });
 
         const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          console.error("Unexpected response format:", await res.text());
+        const responseText = await res.text();
+        console.log("Response Content-Type for /api/conversations:", contentType);
+
+        try {
+          const data = JSON.parse(responseText);
+          if (res.ok) {
+            setConversations(data.conversations || []);
+            setError("");
+          } else {
+            setError(data.message || "無法載入對話列表");
+          }
+        } catch (err) {
+          console.error("Unexpected response format:", responseText);
           setError("伺服器響應格式錯誤");
           return;
-        }
-
-        const data = await res.json();
-        if (res.ok) {
-          setConversations(data.conversations || []);
-          setError("");
-        } else {
-          setError(data.message || "無法載入對話列表");
         }
       } catch (err) {
         console.error("Error fetching conversations:", err);
@@ -61,6 +97,7 @@ export default function ChatModal({ isOpen, onClose }) {
     fetchConversations();
   }, [isOpen]);
 
+  // 載入消息
   useEffect(() => {
     if (!selectedConversation) {
       setMessages([]);
@@ -85,18 +122,23 @@ export default function ChatModal({ isOpen, onClose }) {
         });
 
         const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          console.error("Unexpected response format:", await res.text());
+        const responseText = await res.text();
+        console.log("Response Content-Type for /api/conversation/[conversationId]:", contentType);
+        console.log("Response body for /api/conversation/[conversationId]:", responseText);
+
+        try {
+          const data = JSON.parse(responseText);
+          if (res.ok) {
+            console.log("Messages fetched:", data.conversation.messages || []);
+            setMessages(data.conversation.messages || []);
+            setError("");
+          } else {
+            setError(data.message || "無法載入訊息");
+          }
+        } catch (err) {
+          console.error("Unexpected response format:", responseText);
           setError("伺服器響應格式錯誤");
           return;
-        }
-
-        const data = await res.json();
-        if (res.ok) {
-          setMessages(data.conversation.messages || []);
-          setError("");
-        } else {
-          setError(data.message || "無法載入訊息");
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -107,6 +149,7 @@ export default function ChatModal({ isOpen, onClose }) {
     fetchMessages();
   }, [selectedConversation]);
 
+  // 開始新對話
   const handleStartNewConversation = async () => {
     if (!newConversationUser) {
       setError("請輸入用戶名稱");
@@ -130,20 +173,26 @@ export default function ChatModal({ isOpen, onClose }) {
       });
 
       const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error("Unexpected response format:", await res.text());
+      const responseText = await res.text();
+      console.log("Response Content-Type for /api/conversations (POST):", contentType);
+      console.log("Response body for /api/conversations (POST):", responseText);
+
+      try {
+        const data = JSON.parse(responseText);
+        if (res.ok) {
+          const newConversation = { ...data.conversation, messages: [] }; // 確保新對話包含空 messages 陣列
+          setConversations([...conversations, newConversation]);
+          setSelectedConversation(newConversation);
+          setNewConversationUser("");
+          setMessages([]); // 重置消息列表
+          setError("");
+        } else {
+          setError(data.message || "無法創建新對話");
+        }
+      } catch (err) {
+        console.error("Unexpected response format:", responseText);
         setError("伺服器響應格式錯誤");
         return;
-      }
-
-      const data = await res.json();
-      if (res.ok) {
-        setConversations([...conversations, data.conversation]);
-        setSelectedConversation(data.conversation);
-        setNewConversationUser("");
-        setError("");
-      } else {
-        setError(data.message || "無法創建新對話");
       }
     } catch (err) {
       console.error("Error starting new conversation:", err);
@@ -151,6 +200,7 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   };
 
+  // 發送消息
   const handleSendMessage = async (content) => {
     if (!selectedConversation || !content) return;
 
@@ -161,31 +211,41 @@ export default function ChatModal({ isOpen, onClose }) {
         return;
       }
 
-      const res = await fetch("/api/message", {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const receiverId =
+        selectedConversation.user1Id === user?.userId
+          ? selectedConversation.user2Id
+          : selectedConversation.user1Id;
+
+      const res = await fetch("/api/send-message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          conversationId: selectedConversation.id,
+          receiverId,
           content,
         }),
       });
 
       const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error("Unexpected response format:", await res.text());
+      const responseText = await res.text();
+      console.log("Response Content-Type for /api/send-message:", contentType);
+      console.log("Response body for /api/send-message:", responseText);
+
+      try {
+        const data = JSON.parse(responseText);
+        if (res.ok) {
+          // 新版不返回消息對象，需等待 Pusher 推送
+          setError("");
+        } else {
+          setError(data.message || "無法發送訊息");
+        }
+      } catch (err) {
+        console.error("Unexpected response format:", responseText);
         setError("伺服器響應格式錯誤");
         return;
-      }
-
-      const data = await res.json();
-      if (res.ok) {
-        setMessages([...messages, data.message]);
-        setError("");
-      } else {
-        setError(data.message || "無法發送訊息");
       }
     } catch (err) {
       console.error("Error sending message:", err);
@@ -242,39 +302,45 @@ export default function ChatModal({ isOpen, onClose }) {
               </DialogHeader>
 
               <div className="flex-1 p-4 overflow-y-auto bg-slate-50">
-                {messages.map((message) => {
-                  const isOwnMessage =
-                    message.senderId === JSON.parse(localStorage.getItem("user"))?.userId;
-                  return (
-                    <div
-                      key={message.id}
-                      className={`mb-3 flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
-                    >
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-slate-500">開始聊天吧！</p>
+                  </div>
+                ) : (
+                  messages.map((message) => {
+                    const isOwnMessage =
+                      message.senderId === JSON.parse(localStorage.getItem("user"))?.userId;
+                    return (
                       <div
-                        className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${
-                          isOwnMessage
-                            ? "bg-slate-100 text-slate-800 message-bubble-right"
-                            : "bg-white text-slate-800 message-bubble-left"
-                        }`}
+                        key={message.id}
+                        className={`mb-3 flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
                       >
-                        <p>{message.content}</p>
-                        <p className="text-xs text-slate-500 mt-1 text-right">
-                          {new Date(message.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
                         <div
-                          className={`absolute top-0 w-4 h-4 ${
+                          className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${
                             isOwnMessage
-                              ? "right-[-8px] bg-slate-100 message-tail-right"
-                              : "left-[-8px] bg-white message-tail-left"
+                              ? "bg-slate-100 text-slate-800 message-bubble-right"
+                              : "bg-white text-slate-800 message-bubble-left"
                           }`}
-                        />
+                        >
+                          <p>{message.content}</p>
+                          <p className="text-xs text-slate-500 mt-1 text-right">
+                            {new Date(message.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          <div
+                            className={`absolute top-0 w-4 h-4 ${
+                              isOwnMessage
+                                ? "right-[-8px] bg-slate-100 message-tail-right"
+                                : "left-[-8px] bg-white message-tail-left"
+                            }`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
 
               <div className="p-4 bg-white border-t border-slate-200">
@@ -283,7 +349,7 @@ export default function ChatModal({ isOpen, onClose }) {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center bg-slate-50">
-              
+              <p className="text-slate-500">選擇一個對話開始聊天</p>
             </div>
           )}
         </div>

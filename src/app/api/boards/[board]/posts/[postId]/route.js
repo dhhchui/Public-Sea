@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma.js";
+/* import prisma from "@/lib/prisma.js";
 
 export async function GET(request, { params }) {
   console.log("Received GET request to /api/boards/[board]/posts/[postId]", { params });
@@ -99,4 +99,4 @@ export async function OPTIONS(request) {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
   });
-}
+} */

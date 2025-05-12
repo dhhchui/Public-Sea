@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import UserList from "@/components/UserList";
+import RatingComponent from "@/components/RatingModal"; // 新增
 
 export default function UserProfile() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function UserProfile() {
           setFormData({
             nickname: data.user.nickname || "",
             bio: data.user.bio || "",
-            hobbies: data.user.hobbies ? data.user.hobbies.join(", ") : "", // 將數組轉為逗號分隔的字符串
+            hobbies: data.user.hobbies ? data.user.hobbies.join(", ") : "",
             password: "",
             confirmPassword: "",
           });
@@ -80,7 +81,6 @@ export default function UserProfile() {
         return;
       }
 
-      // 將 hobbies 字符串轉為數組
       const hobbiesArray = formData.hobbies
         ? formData.hobbies.split(",").map((hobby) => hobby.trim()).filter((hobby) => hobby)
         : [];
@@ -93,7 +93,7 @@ export default function UserProfile() {
         },
         body: JSON.stringify({
           ...formData,
-          hobbies: hobbiesArray, // 傳遞數組
+          hobbies: hobbiesArray,
         }),
       });
 
@@ -348,6 +348,9 @@ export default function UserProfile() {
                       {user.hobbies && user.hobbies.length > 0 ? user.hobbies.join(", ") : "未設置興趣"}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-lg font-medium text-gray-700">評分: {user.rating || 0}</p>
+                  </div>
                   <div className="flex gap-4">
                     <div>
                       <p className="text-lg font-medium text-gray-700">
@@ -375,22 +378,27 @@ export default function UserProfile() {
                     </div>
                   </div>
                 </div>
-                {parseInt(userId) !== JSON.parse(localStorage.getItem("user") || "{}")?.userId && (
-                  <Button
-                    onClick={isFollowing ? handleUnfollow : handleFollow}
-                    className={`${isFollowing ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"} text-white font-semibold py-2 px-4 rounded-md`}
-                  >
-                    {isFollowing ? "Unfollow" : "Follow"}
-                  </Button>
-                )}
-                {parseInt(userId) === JSON.parse(localStorage.getItem("user") || "{}")?.userId && (
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md"
-                  >
-                    Edit Profile
-                  </Button>
-                )}
+                <div className="flex gap-4 items-center">
+                  {parseInt(userId) !== JSON.parse(localStorage.getItem("user") || "{}")?.userId && (
+                    <>
+                      <Button
+                        onClick={isFollowing ? handleUnfollow : handleFollow}
+                        className={`${isFollowing ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"} text-white font-semibold py-2 px-4 rounded-md`}
+                      >
+                        {isFollowing ? "Unfollow" : "Follow"}
+                      </Button>
+                      <RatingComponent ratedUserId={parseInt(userId)} />
+                    </>
+                  )}
+                  {parseInt(userId) === JSON.parse(localStorage.getItem("user") || "{}")?.userId && (
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md"
+                    >
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

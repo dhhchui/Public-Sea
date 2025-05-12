@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { Search, UserPlus, Heart } from "lucide-react";
+import debounce from "lodash/debounce";
 
 export default function SearchBar({ onToggle }) {
   const router = useRouter();
@@ -14,47 +15,54 @@ export default function SearchBar({ onToggle }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSearch = async () => {
-    if (!searchQuery) {
-      setSearchResults({ users: [], posts: [] });
-      setError("請輸入搜尋關鍵字");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-        body: JSON.stringify({ query: searchQuery }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.log("Response status:", res.status);
-        console.log("Response text:", errorData.message);
-        if (res.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          router.push("/login");
-          return;
-        }
-        setError(errorData.message || "搜尋失敗");
+  const handleSearch = useCallback(
+    debounce(async (query) => {
+      if (!query) {
         setSearchResults({ users: [], posts: [] });
+        setError("請輸入搜尋關鍵字");
         return;
       }
 
-      const data = await res.json();
-      setSearchResults(data);
-      setError("");
-    } catch (error) {
-      console.error("Error during search:", error);
-      setError("搜尋時發生錯誤");
-      setSearchResults({ users: [], posts: [] });
-    }
-  };
+      try {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.log("Response status:", res.status);
+          console.log("Response text:", errorData.message);
+          if (res.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            router.push("/login");
+            return;
+          }
+          setError(errorData.message || "搜尋失敗");
+          setSearchResults({ users: [], posts: [] });
+          return;
+        }
+
+        const data = await res.json();
+        if (data.users.length === 0 && data.posts.length === 0) {
+          setError("無匹配的用戶或話題");
+        } else {
+          setError("");
+        }
+        setSearchResults(data);
+      } catch (error) {
+        console.error("Error during search:", error);
+        setError("搜尋時發生錯誤");
+        setSearchResults({ users: [], posts: [] });
+      }
+    }, 500),
+    [router]
+  );
 
   const handleViewProfile = (userId) => {
     router.push(`/user-profile/${userId}`);
@@ -143,16 +151,21 @@ export default function SearchBar({ onToggle }) {
         <span>搜尋</span>
       </SidebarMenuButton>
       {isSearchOpen && (
-        <div className="p-2 bg-white shadow-lg rounded-md mt-2">
+        <div className="p-2 bg-white shadow-lg rounded-md mt-2 w-full max-w-md">
           <Input
             type="text"
             placeholder="搜尋用戶或話題..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              handleSearch(e.target.value);
+            }}
             className="mb-2"
           />
-          <Button onClick={handleSearch} className="w-full mb-2">
+          <Button
+            onClick={() => handleSearch(searchQuery)}
+            className="w-full mb-2"
+          >
             搜尋
           </Button>
           {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
@@ -164,7 +177,7 @@ export default function SearchBar({ onToggle }) {
                   {searchResults.users.map((user) => (
                     <div
                       key={user.id}
-                      className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md"
+                      className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md w-full"
                     >
                       <span
                         className="cursor-pointer flex-1 truncate"
@@ -200,7 +213,7 @@ export default function SearchBar({ onToggle }) {
                   {searchResults.posts.map((post) => (
                     <div
                       key={post.id}
-                      className="p-2 hover:bg-gray-100 rounded-md cursor-pointer"
+                      className="p-2 hover:bg-gray-100 rounded-md cursor-pointer w-full"
                       onClick={() => handlePostClick(post.board.name, post.id)}
                     >
                       <div>{post.title}</div>

@@ -30,10 +30,13 @@ export async function POST(request) {
     }
 
     const { ratedUserId, rating } = data;
-    if (!ratedUserId || !rating) {
-      console.log("Missing ratedUserId or rating");
+
+    if (!ratedUserId || ![-1, 1].includes(rating)) {
+      console.log("Missing ratedUserId or invalid rating");
       return new Response(
-        JSON.stringify({ message: "Rated user ID and rating are required" }),
+        JSON.stringify({
+          message: "Rated user ID and valid rating (+1 or -1) are required",
+        }),
         { status: 400 }
       );
     }
@@ -49,15 +52,6 @@ export async function POST(request) {
       );
     }
 
-    if (![1, -1].includes(rating)) {
-      console.log("Invalid rating value");
-      return new Response(
-        JSON.stringify({ message: "Rating must be +1 or -1" }),
-        { status: 400 }
-      );
-    }
-
-    // 檢查被評分用戶是否存在
     const ratedUser = await prisma.user.findUnique({
       where: { id: ratedUserIdInt },
     });
@@ -68,56 +62,61 @@ export async function POST(request) {
       });
     }
 
-    // 檢查是否已評分
     const existingRating = await prisma.userRating.findUnique({
       where: {
         raterId_ratedUserId: {
-          raterId,
+          raterId: raterId,
           ratedUserId: ratedUserIdInt,
         },
       },
     });
+
     if (existingRating) {
-      console.log("User has already rated this user");
+      console.log("You have already rated this user");
       return new Response(
         JSON.stringify({ message: "You have already rated this user" }),
         { status: 400 }
       );
     }
 
-    // 創建評分記錄
     await prisma.userRating.create({
       data: {
-        raterId,
+        raterId: raterId,
         ratedUserId: ratedUserIdInt,
-        rating,
+        rating: rating,
       },
     });
 
-    // 更新目標用戶的總評分
-    const totalRating = await prisma.userRating.aggregate({
+    const newRating = await prisma.userRating.aggregate({
       where: { ratedUserId: ratedUserIdInt },
-      _sum: { rating: true },
+      _sum: {
+        rating: true,
+      },
     });
 
-    const newRating = totalRating._sum.rating || 0;
-    const isRedFlagged = newRating < -10;
+    const updatedRating = newRating._sum.rating || 0;
 
     await prisma.user.update({
       where: { id: ratedUserIdInt },
-      data: {
-        rating: newRating,
-        isRedFlagged,
+      data: { rating: updatedRating },
+    });
+
+    // 檢查是否需要標記為紅旗用戶
+    await fetch("/api/check-redflag", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
       },
+      body: JSON.stringify({ targetUserId: ratedUserIdInt }),
     });
 
     return new Response(
       JSON.stringify({
         message: "Rating submitted successfully",
-        newRating,
-        isRedFlagged,
+        newRating: updatedRating,
       }),
-      { status: 200 }
+      { status: 201 }
     );
   } catch (error) {
     console.error("Error in POST /api/rating:", error);

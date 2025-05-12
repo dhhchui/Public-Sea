@@ -36,9 +36,13 @@ export default function CreatePostPage() {
           if (data.boards.length > 0) {
             setBoardId(data.boards[0].id.toString());
           }
+        } else {
+          const errorData = await res.json();
+          setError(errorData.message || "無法載入看板");
         }
       } catch (error) {
         console.error("Error fetching boards:", error);
+        setError("載入看板時發生錯誤，請稍後再試");
       }
     };
 
@@ -57,7 +61,7 @@ export default function CreatePostPage() {
     }
 
     if (!title || !content || !boardId) {
-      setError("Please fill in all fields.");
+      setError("請填寫所有欄位");
       return;
     }
 
@@ -73,50 +77,51 @@ export default function CreatePostPage() {
 
       const data = await res.json();
       if (res.ok) {
-        setSuccess("Post created successfully! Redirecting...");
+        setSuccess("帖子創建成功！即將跳轉...");
         setTimeout(() => {
           router.push("/post-list");
         }, 1000);
+        setTitle("");
+        setContent("");
+        setBoardId(boards[0]?.id.toString() || "");
       } else {
-        setError(data.message);
+        setError(data.message || "創建帖子失敗，請重試");
       }
     } catch (error) {
       console.error("Error creating post:", error);
-      setError("An error occurred while creating the post. Please try again.");
+      setError("創建帖子時發生錯誤，請重試");
     }
   };
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-center">Create a Post</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">創建帖子</h2>
         {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
-        {success && (
-          <p className="text-green-500 mb-4 text-center">{success}</p>
-        )}
+        {success && <p className="text-green-500 mb-4 text-center">{success}</p>}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700">Title</label>
+            <label className="block text-gray-700">標題</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full p-2 border rounded"
-              placeholder="Enter the post title"
+              placeholder="輸入帖子標題"
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">Content</label>
+            <label className="block text-gray-700">內容</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full p-2 border rounded"
               rows="5"
-              placeholder="Enter the post content"
+              placeholder="輸入帖子內容"
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">Board</label>
+            <label className="block text-gray-700">看板</label>
             <select
               value={boardId}
               onChange={(e) => setBoardId(e.target.value)}
@@ -133,14 +138,14 @@ export default function CreatePostPage() {
             type="submit"
             className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Create Post
+            創建帖子
           </button>
         </form>
         <button
           onClick={() => router.push("/dashboard")}
           className="w-full p-2 mt-4 bg-gray-500 text-white rounded hover:bg-gray-600"
         >
-          Back to Dashboard
+          返回儀表板
         </button>
       </div>
     </div>

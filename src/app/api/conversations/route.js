@@ -90,6 +90,9 @@ export async function POST(request) {
       include: {
         user1: { select: { id: true, nickname: true } },
         user2: { select: { id: true, nickname: true } },
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
@@ -107,6 +110,9 @@ export async function POST(request) {
       include: {
         user1: { select: { id: true, nickname: true } },
         user2: { select: { id: true, nickname: true } },
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 

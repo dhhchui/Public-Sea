@@ -1,138 +1,81 @@
-import prisma from "@/lib/prisma.js";
-import { NextResponse } from "next/server";
+import prisma from "../../../lib/prisma";
+import jwt from "jsonwebtoken";
 
 export async function GET(request) {
+  console.log("Received GET request to /api/post-list");
+
   try {
+    let userId = null;
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      console.log("Verifying JWT...");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.userId;
+    }
+
     const { searchParams } = new URL(request.url);
-    const board = searchParams.get("board");
-    const page = parseInt(searchParams.get("page")) || 1;
-    const pageSize = parseInt(searchParams.get("pageSize")) || 10;
-    const popular = searchParams.get("popular");
-    const postId = searchParams.get("postId");
-
-    console.log("Received GET /api/post-list:", {
-      board,
-      page,
-      pageSize,
-      popular,
-      postId,
-    });
-
-    if (postId) {
-      const post = await prisma.post.findUnique({
-        where: { id: parseInt(postId) },
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-          board: {
-            select: {
-              name: true,
-            },
-          },
-          comments: {
-            include: { author: { select: { id: true, username: true } } },
-            skip: (page - 1) * pageSize,
-            take: pageSize,
-          },
-        },
-      });
-
-      if (!post) {
-        console.log(`Post not found: postId=${postId}`);
-        return NextResponse.json({ message: "找不到貼文" }, { status: 404 });
-      }
-
-      const totalComments = await prisma.comment.count({
-        where: { postId: parseInt(postId) },
-      });
-
-      const serializedPost = {
-        ...post,
-        view: post.view.toString(),
-      };
-
-      return NextResponse.json(
-        { post: serializedPost, totalComments, page, pageSize },
-        { status: 200 }
-      );
-    }
-
-    if (board && typeof board !== "string") {
-      console.log("Invalid board parameter:", board);
-      return NextResponse.json({ message: "無效的討論區參數" }, { status: 400 });
-    }
+    const boardId = searchParams.get("boardId");
 
     let where = {};
-    let orderBy = { createdAt: "desc" };
-
-    if (board) {
-      where = {
-        board: {
-          is: {
-            name: board,
-          },
-        },
-      };
+    if (boardId) {
+      const boardIdInt = parseInt(boardId);
+      if (isNaN(boardIdInt)) {
+        console.log("Invalid boardId");
+        return new Response(JSON.stringify({ message: "Invalid boardId" }), {
+          status: 400,
+        });
+      }
+      where.boardId = boardIdInt;
     }
 
-    if (popular === "true") {
-      orderBy = { view: "desc" };
+    let blockedUsers = [];
+    let usersWhoBlockedMe = [];
+    if (userId) {
+      const blockRecords = await prisma.block.findMany({
+        where: { blockerId: userId },
+        select: { blockedId: true },
+      });
+      blockedUsers = blockRecords.map((record) => record.blockedId);
+
+      const blockedByRecords = await prisma.block.findMany({
+        where: { blockedId: userId },
+        select: { blockerId: true },
+      });
+      usersWhoBlockedMe = blockedByRecords.map((record) => record.blockerId);
     }
 
-    const [posts, total] = await Promise.all([
-      prisma.post.findMany({
-        where,
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-          board: {
-            select: {
-              name: true,
-            },
+    const blockedUserIds = [...blockedUsers, ...usersWhoBlockedMe];
+    if (blockedUserIds.length > 0) {
+      where.authorId = { notIn: blockedUserIds };
+    }
+
+    const posts = await prisma.post.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          select: {
+            id: true,
+            nickname: true,
           },
         },
-        orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      prisma.post.count({ where }),
-    ]);
+      },
+    });
 
     const serializedPosts = posts.map((post) => ({
       ...post,
       view: post.view.toString(),
     }));
 
-    console.log(`Returning ${posts.length} posts, total: ${total}`);
-
-    return NextResponse.json(
-      {
-        posts: serializedPosts,
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error in GET /api/post-list:", {
-      message: error.message,
-      stack: error.stack,
+    return new Response(JSON.stringify({ posts: serializedPosts }), {
+      status: 200,
     });
-    return NextResponse.json(
-      { message: "伺服器錯誤: " + error.message },
+  } catch (error) {
+    console.error("Error in GET /api/post-list:", error);
+    return new Response(
+      JSON.stringify({ message: "Server error: " + error.message }),
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
