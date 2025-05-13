@@ -113,9 +113,7 @@ export function LoginForm({ className, ...props }) {
             <form onSubmit={handleSubmit}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-3">
-                  <Label htmlFor="usernameOrEmail">
-                    電郵地址 或 用戶名稱
-                  </Label>
+                  <Label htmlFor="usernameOrEmail">電郵地址 或 用戶名稱</Label>
                   <Input
                     type="text"
                     name="usernameOrEmail"

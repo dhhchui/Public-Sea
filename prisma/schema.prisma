@@ -8,27 +8,30 @@ datasource db {
 }
 
 model Conversation {
-  id        Int       @id @default(autoincrement())
-  user1Id   Int
-  user2Id   Int
-  createdAt DateTime  @default(now())
-  user1     User      @relation("User1Conversations", fields: [user1Id], references: [id])
-  user2     User      @relation("User2Conversations", fields: [user2Id], references: [id])
-  messages  Message[]
+  id           Int         @id @default(autoincrement())
+  user1Id      Int
+  user2Id      Int
+  user1        User        @relation("User1Conversations", fields: [user1Id], references: [id])
+  user2        User        @relation("User2Conversations", fields: [user2Id], references: [id])
+  messages     Message[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  @@unique([user1Id, user2Id])
+  @@index([user1Id, user2Id]) // 添加複合索引
 }
 
 model Message {
-  id             Int          @id @default(autoincrement())
-  content        String
-  senderId       Int
+  id            Int         @id @default(autoincrement())
+  content       String
+  senderId      Int
   conversationId Int
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  sender         User         @relation("UserMessages", fields: [senderId], references: [id])
+  createdAt     DateTime    @default(now())
+  sender        User        @relation("UserMessages", fields: [senderId], references: [id])
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
 
-  @@index([createdAt])
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt]) // 添加 createdAt 索引
 }
 
 model Comment {

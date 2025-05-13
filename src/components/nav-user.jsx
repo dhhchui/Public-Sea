@@ -208,8 +208,7 @@ export function NavUser() {
                   <span className="truncate font-medium">
                     {user?.nickname || user?.username}
                   </span>
-                  <span className="truncate text-xs">{user?.email}
-                  </span>
+                  <span className="truncate text-xs">{user?.email}</span>
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
               </SidebarMenuButton>
@@ -265,9 +264,21 @@ export function NavUser() {
         </SidebarMenuItem>
       </SidebarMenu>
 
-      <FollowPanel user={user} isOpen={isFollowPanelOpen} onClose={() => setIsFollowPanelOpen(false)} />
-      <FriendPanel user={user} isOpen={isFriendPanelOpen} onClose={() => setIsFriendPanelOpen(false)} />
-      <NotificationPanel user={user} isOpen={isNotificationPanelOpen} onClose={() => setIsNotificationPanelOpen(false)} />
+      <FollowPanel
+        user={user}
+        isOpen={isFollowPanelOpen}
+        onClose={() => setIsFollowPanelOpen(false)}
+      />
+      <FriendPanel
+        user={user}
+        isOpen={isFriendPanelOpen}
+        onClose={() => setIsFriendPanelOpen(false)}
+      />
+      <NotificationPanel
+        user={user}
+        isOpen={isNotificationPanelOpen}
+        onClose={() => setIsNotificationPanelOpen(false)}
+      />
     </>
   );
 }

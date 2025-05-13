@@ -1,6 +1,7 @@
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 import Pusher from "pusher";
+import { Redis } from "@upstash/redis";
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -10,8 +11,15 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+// 初始化 Upstash Redis 客戶端
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
 export async function POST(request) {
   console.log("Received POST request to /api/send-message");
+  const startTime = performance.now();
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -19,41 +27,21 @@ export async function POST(request) {
       console.log("No token provided");
       return new Response(JSON.stringify({ message: "No token provided" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
       });
     }
 
     const token = authHeader.split(" ")[1];
     console.log("Verifying JWT...");
+    const jwtStartTime = performance.now();
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const senderId = decoded.userId;
+    const jwtEndTime = performance.now();
+    console.log(
+      `JWT verification time: ${(jwtEndTime - jwtStartTime).toFixed(2)}ms`
+    );
 
-    const sender = await prisma.user.findUnique({
-      where: { id: senderId },
-      select: { isRedFlagged: true, friends: true, nickname: true },
-    });
-
-    if (!sender) {
-      console.log("Sender not found");
-      return new Response(JSON.stringify({ message: "Sender not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    let data;
-    try {
-      data = await request.json();
-      console.log("Request body:", data);
-    } catch (error) {
-      console.error("Error parsing request body:", error);
-      return new Response(JSON.stringify({ message: "Invalid request body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const { receiverId, content } = data;
+    const { receiverId, content } = await request.json();
+    console.log("Request body:", { receiverId, content });
 
     if (!receiverId || !content) {
       console.log("Missing receiverId or content");
@@ -61,93 +49,60 @@ export async function POST(request) {
         JSON.stringify({
           message: "Receiver ID and message content are required",
         }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 400 }
       );
     }
 
     const receiverIdInt = parseInt(receiverId);
-    if (isNaN(receiverIdInt) || receiverIdInt === senderId) {
-      console.log("Invalid receiverId or attempting to send message to self");
-      return new Response(
-        JSON.stringify({
-          message: "Invalid receiver ID or cannot send message to self",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const receiver = await prisma.user.findUnique({
-      where: { id: receiverIdInt },
-    });
-    if (!receiver) {
-      console.log("Receiver not found");
-      return new Response(JSON.stringify({ message: "Receiver not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
+    if (isNaN(receiverIdInt)) {
+      console.log("Invalid receiverId");
+      return new Response(JSON.stringify({ message: "Invalid receiverId" }), {
+        status: 400,
       });
     }
 
-    const blockRecord = await prisma.block.findUnique({
-      where: {
-        blockerId_blockedId: {
-          blockerId: receiverIdInt,
-          blockedId: senderId,
-        },
-      },
-    });
-    if (blockRecord) {
-      console.log("You are blocked by the receiver");
-      return new Response(
-        JSON.stringify({ message: "You are blocked by the receiver" }),
-        {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
+    // 檢查對話是否存在（使用快取）
+    const cacheKey = `conversation:user:${senderId}:${receiverIdInt}`;
+    console.log("Checking cache for key:", cacheKey);
 
-    if (sender.isRedFlagged) {
-      const friends = sender.friends || [];
-      if (!friends.includes(receiverIdInt)) {
-        console.log("Restricted user can only send PM to friends");
-        return new Response(
-          JSON.stringify({
-            message: "由於你的帳戶被限制，只能向好友發送私人訊息",
-          }),
-          {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-      }
-    }
-
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        OR: [
-          { user1Id: senderId, user2Id: receiverIdInt },
-          { user1Id: receiverIdInt, user2Id: senderId },
-        ],
-      },
-    });
-
+    let conversation = await redis.get(cacheKey);
     if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          user1Id: senderId,
-          user2Id: receiverIdInt,
+      console.log("Cache miss, fetching conversation from database");
+      const dbStartTime = performance.now();
+      conversation = await prisma.conversation.findFirst({
+        where: {
+          OR: [
+            { user1Id: senderId, user2Id: receiverIdInt },
+            { user1Id: receiverIdInt, user2Id: senderId },
+          ],
         },
       });
+
+      if (!conversation) {
+        console.log("Conversation not found, creating new conversation");
+        conversation = await prisma.conversation.create({
+          data: {
+            user1Id: senderId,
+            user2Id: receiverIdInt,
+          },
+        });
+      }
+
+      const dbEndTime = performance.now();
+      console.log(
+        `Database query time: ${(dbEndTime - dbStartTime).toFixed(2)}ms`
+      );
+
+      // 快取對話數據，TTL 為 1 小時（3600秒）
+      await redis.set(cacheKey, conversation, { ex: 3600 });
+      console.log("Conversation cached successfully");
+    } else {
+      console.log("Returning cached conversation");
     }
 
-    // 保存消息到資料庫
-    const savedMessage = await prisma.message.create({
+    // 創建訊息
+    const messageStartTime = performance.now();
+    const message = await prisma.message.create({
       data: {
         content,
         senderId,
@@ -156,60 +111,53 @@ export async function POST(request) {
       },
     });
 
-    const message = {
-      id: savedMessage.id,
-      content: savedMessage.content,
-      senderId: savedMessage.senderId,
-      conversationId: savedMessage.conversationId,
-      createdAt: savedMessage.createdAt.toISOString(),
-    };
-
-    // 創建通知，存入 prisma.notification
-    await fetch("/api/notifications", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        userId: receiverIdInt,
-        message: `${sender.nickname} 向你發送了一條新消息`,
-      }),
-    });
-
-    // Pusher 推送通知
-    await pusher.trigger(`user-${receiverIdInt}`, "notification", {
-      type: "pm",
-      relatedId: conversation.id,
-      senderId: senderId,
-      message: `${sender.nickname} 向你發送了一個新的 PM`,
-    });
-
-    // 推送新消息到對話
-    await pusher.trigger(
-      `conversation-${conversation.id}`,
-      "new-message",
-      message
+    const messageEndTime = performance.now();
+    console.log(
+      `Message creation time: ${(messageEndTime - messageStartTime).toFixed(
+        2
+      )}ms`
     );
 
+    // 序列化訊息
+    const serializedMessage = {
+      ...message,
+      createdAt: message.createdAt.toISOString(),
+      sender: {
+        id: senderId,
+        nickname: "Sender", // 假設發送者 nickname，避免查詢
+      },
+    };
+
+    // 異步觸發 Pusher 通知
+    setTimeout(async () => {
+      try {
+        await pusher.trigger(
+          `conversation-${conversation.id}`,
+          "new-message",
+          serializedMessage
+        );
+        console.log("Pusher notification sent");
+      } catch (pusherError) {
+        console.error("Error sending Pusher notification:", pusherError);
+      }
+    }, 0);
+
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
+
     return new Response(
-      JSON.stringify({
-        message: "Message sent successfully",
-        conversationId: conversation.id,
-      }),
+      JSON.stringify({ message: "Message sent successfully" }),
       {
         status: 201,
-        headers: { "Content-Type": "application/json" },
       }
     );
   } catch (error) {
     console.error("Error in POST /api/send-message:", error);
     return new Response(
       JSON.stringify({ message: "Server error: " + error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

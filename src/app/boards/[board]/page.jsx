@@ -17,6 +17,7 @@ const categoryMap = {
   遊戲台: "興趣",
   影視台: "興趣",
   音樂台: "興趣",
+  感情台: "生活",
 };
 
 export async function generateStaticParams() {

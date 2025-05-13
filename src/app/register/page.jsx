@@ -38,7 +38,7 @@ export default function RegisterPage() {
       return false;
     }
     if (formData.password.length < 6) {
-      setMessage({ text: "密碼至少需要6個字符", type: "error" });
+      setMessage({ text: "密碼需要8-24個字符", type: "error" });
       return false;
     }
     return true;

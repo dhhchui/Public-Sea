@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +13,10 @@ import ConversationList from "@/components/ConversationList";
 import MessageInput from "@/components/MessageInput";
 import Pusher from "pusher-js";
 import useSWR from "swr";
+import { FixedSizeList } from "react-window";
 
 // 自訂 fetcher 函數給 useSWR 使用
-const fetcher = async (url) => {
-  const token = localStorage.getItem("token");
+const fetcher = async (url, token) => {
   if (!token) {
     throw new Error("請先登入");
   }
@@ -46,6 +46,112 @@ const fetcher = async (url) => {
   }
 };
 
+// 預格式化訊息數據
+const formatMessage = (message, currentUserId) => {
+  const isOwnMessage = message.senderId === currentUserId;
+  const formattedTime = new Date(message.createdAt).toLocaleString("zh-HK", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return {
+    ...message,
+    isOwnMessage,
+    formattedTime,
+  };
+};
+
+// 獨立 ConversationPane 組件
+const ConversationPane = React.memo(
+  ({
+    selectedConversation,
+    userId,
+    messages,
+    messagesEndRef,
+    onSendMessage,
+  }) => {
+    const MessageRow = React.memo(({ index, style }) => {
+      const message = messages[index];
+      return (
+        <div style={style}>
+          <div
+            className={`mb-3 flex ${
+              message.isOwnMessage ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${
+                message.isOwnMessage
+                  ? "bg-slate-100 text-slate-800 message-bubble-right"
+                  : "bg-white text-slate-800 message-bubble-left"
+              }`}
+            >
+              <p>{message.content}</p>
+              <p className="text-xs text-slate-500 mt-1 text-right">
+                {message.formattedTime}
+              </p>
+              <div
+                className={`absolute top-0 w-4 h-4 ${
+                  message.isOwnMessage
+                    ? "right-[-8px] bg-slate-100 message-tail-right"
+                    : "left-[-8px] bg-white message-tail-left"
+                }`}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+    return (
+      <div className="w-2/3 flex flex-col">
+        <span id="dialog-description" className="sr-only">
+          這是一個用於私聊的對話視窗，顯示對話列表和訊息內容。
+        </span>
+        {selectedConversation ? (
+          <>
+            <DialogHeader className="p-4 bg-white border-b border-slate-200 flex items-center">
+              <DialogTitle className="text-lg font-semibold text-slate-800">
+                與{" "}
+                {selectedConversation.user1Id === userId
+                  ? selectedConversation.user2.nickname
+                  : selectedConversation.user1.nickname}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-1 p-4 bg-slate-50">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-slate-500">開始聊天吧！</p>
+                </div>
+              ) : (
+                <FixedSizeList
+                  height={400}
+                  width="100%"
+                  itemCount={messages.length}
+                  itemSize={100}
+                >
+                  {MessageRow}
+                </FixedSizeList>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="p-4 bg-white border-t border-slate-200">
+              <MessageInput onSendMessage={onSendMessage} />
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-slate-50">
+            <p className="text-slate-500">選擇一個對話開始聊天</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
 export default function ChatModal({ isOpen, onClose }) {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -55,6 +161,27 @@ export default function ChatModal({ isOpen, onClose }) {
   const [error, setError] = useState("");
   const [pusher, setPusher] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [token, setToken] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  // 客戶端環境中初始化 userId 和 token
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userData = localStorage.getItem("user");
+      setUserId(userData ? JSON.parse(userData).userId : null);
+      setToken(localStorage.getItem("token"));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+
+    if (!userId) {
+      setError("無法獲取用戶資訊，請重新登入");
+      onClose();
+      return;
+    }
+  }, [isOpen, onClose, userId]);
 
   // 初始化 Pusher
   useEffect(() => {
@@ -71,42 +198,36 @@ export default function ChatModal({ isOpen, onClose }) {
     };
   }, [isOpen]);
 
-  // 監聽 Pusher 消息
+  // 監聽 Pusher 訊息
   useEffect(() => {
     if (!pusher || !selectedConversation) return;
 
     const channel = pusher.subscribe(`conversation-${selectedConversation.id}`);
     channel.bind("new-message", (data) => {
-      setMessages((prev) => [...prev, data]);
+      const startTime = performance.now();
+      const formattedData = formatMessage(data, userId);
+      setMessages((prev) => [...prev, formattedData]);
+      const endTime = performance.now();
+      console.log(
+        `Frontend message processing time: ${(endTime - startTime).toFixed(
+          2
+        )}ms`
+      );
     });
 
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
     };
-  }, [pusher, selectedConversation]);
-
-  // 獲取當前用戶 ID
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const userData = JSON.parse(localStorage.getItem("user") || "{}");
-    const currentUserId = userData?.userId ? parseInt(userData.userId) : null;
-    if (!currentUserId) {
-      setError("無法獲取用戶資訊，請重新登入");
-      onClose();
-      return;
-    }
-    setUserId(currentUserId);
-  }, [isOpen, onClose]);
+  }, [pusher, selectedConversation, userId]);
 
   // 使用 useSWR 快取對話列表
   const { data: conversationsData, error: conversationsError } = useSWR(
-    userId ? `/api/conversations` : null,
-    fetcher,
+    userId ? ["/api/conversations", token] : null,
+    ([url, token]) => fetcher(url, token),
     {
-      revalidateOnFocus: false, // 不自動在焦點時重新驗證
-      dedupingInterval: 86400000, // 快取 24 小時（86400秒）
+      revalidateOnFocus: false,
+      dedupingInterval: 86400000,
       onError: (err) => {
         setError(err.message || "載入對話列表時發生錯誤");
         onClose();
@@ -121,15 +242,19 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   }, [conversationsData]);
 
-  // 使用 useSWR 快取消息
-  const { data: messagesData, error: messagesError } = useSWR(
+  // 使用 useSWR 快取訊息
+  const {
+    data: messagesData,
+    error: messagesError,
+    mutate,
+  } = useSWR(
     selectedConversation
-      ? `/api/conversation/${selectedConversation.id}`
+      ? [`/api/conversation/${selectedConversation.id}`, token]
       : null,
-    fetcher,
+    ([url, token]) => fetcher(url, token),
     {
-      revalidateOnFocus: false, // 不自動在焦點時重新驗證
-      dedupingInterval: 300000, // 快取 5 分鐘（300秒）
+      revalidateOnFocus: false,
+      dedupingInterval: 300000,
       onError: (err) => {
         setError(err.message || "載入訊息時發生錯誤");
       },
@@ -143,12 +268,20 @@ export default function ChatModal({ isOpen, onClose }) {
     }
 
     if (messagesData) {
-      setMessages(messagesData.conversation?.messages || []);
+      const formattedMessages =
+        messagesData.conversation?.messages.map((message) =>
+          formatMessage(message, userId)
+        ) || [];
+      setMessages(formattedMessages);
       setError("");
     }
-  }, [messagesData, selectedConversation]);
+  }, [messagesData, selectedConversation, userId]);
 
-  // 搜索用戶（模擬搜索）
+  // 自動滾動到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleSearchUsers = async () => {
     if (!newConversationUser.trim()) {
       setError("請輸入電子郵件或暱稱");
@@ -157,7 +290,6 @@ export default function ChatModal({ isOpen, onClose }) {
     }
 
     try {
-      const token = localStorage.getItem("token");
       if (!token) {
         setError("請先登入");
         onClose();
@@ -207,10 +339,8 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   };
 
-  // 選擇用戶並開始新對話
   const handleStartNewConversation = async (targetUserId) => {
     try {
-      const token = localStorage.getItem("token");
       if (!token) {
         setError("請先登入");
         onClose();
@@ -266,20 +396,17 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   };
 
-  // 發送消息
   const handleSendMessage = async (content) => {
     if (!selectedConversation || !content) return;
 
     try {
-      const token = localStorage.getItem("token");
       if (!token) {
         setError("請先登入");
         return;
       }
 
-      const user = JSON.parse(localStorage.getItem("user"));
       const receiverId =
-        selectedConversation.user1Id === user?.userId
+        selectedConversation.user1Id === userId
           ? selectedConversation.user2Id
           : selectedConversation.user1Id;
 
@@ -304,6 +431,8 @@ export default function ChatModal({ isOpen, onClose }) {
         const data = JSON.parse(responseText);
         if (res.ok) {
           setError("");
+          // 觸發重新驗證訊息數據
+          await mutate();
         } else {
           setError(data.message || "無法發送訊息");
         }
@@ -321,7 +450,6 @@ export default function ChatModal({ isOpen, onClose }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl h-[90vh] flex p-0 rounded-lg shadow-lg border border-slate-200">
-        {/* 左側：對話列表 */}
         <div className="w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col">
           <DialogHeader className="p-4 bg-white border-b border-slate-200">
             <DialogTitle className="text-lg font-semibold text-slate-800">
@@ -374,83 +502,13 @@ export default function ChatModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* 右側：聊天區域 */}
-        <div className="w-2/3 flex flex-col">
-          <span id="dialog-description" className="sr-only">
-            這是一個用於私聊的對話視窗，顯示對話列表和訊息內容。
-          </span>
-          {selectedConversation ? (
-            <>
-              <DialogHeader className="p-4 bg-white border-b border-slate-200 flex items-center">
-                <DialogTitle className="text-lg font-semibold text-slate-800">
-                  與{" "}
-                  {selectedConversation.user1Id ===
-                  JSON.parse(localStorage.getItem("user"))?.userId
-                    ? selectedConversation.user2.nickname
-                    : selectedConversation.user1.nickname}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="flex-1 p-4 overflow-y-auto bg-slate-50">
-                {messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-slate-500">開始聊天吧！</p>
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isOwnMessage =
-                      message.senderId ===
-                      JSON.parse(localStorage.getItem("user"))?.userId;
-                    return (
-                      <div
-                        key={message.id}
-                        className={`mb-3 flex ${
-                          isOwnMessage ? "justify-end" : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${
-                            isOwnMessage
-                              ? "bg-slate-100 text-slate-800 message-bubble-right"
-                              : "bg-white text-slate-800 message-bubble-left"
-                          }`}
-                        >
-                          <p>{message.content}</p>
-                          <p className="text-xs text-slate-500 mt-1 text-right">
-                            {new Date(message.createdAt).toLocaleString(
-                              "zh-HK",
-                              {
-                                month: "numeric",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </p>
-                          <div
-                            className={`absolute top-0 w-4 h-4 ${
-                              isOwnMessage
-                                ? "right-[-8px] bg-slate-100 message-tail-right"
-                                : "left-[-8px] bg-white message-tail-left"
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="p-4 bg-white border-t border-slate-200">
-                <MessageInput onSendMessage={handleSendMessage} />
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-slate-50">
-              <p className="text-slate-500">選擇一個對話開始聊天</p>
-            </div>
-          )}
-        </div>
+        <ConversationPane
+          selectedConversation={selectedConversation}
+          userId={userId}
+          messages={messages}
+          messagesEndRef={messagesEndRef}
+          onSendMessage={handleSendMessage}
+        />
       </DialogContent>
 
       <style jsx>{`
