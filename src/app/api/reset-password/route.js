@@ -15,13 +15,13 @@ export async function POST(request) {
     });
   }
 
-  const { username, password } = data;
+  const { username, email, password } = data;
 
   // 檢查必要欄位
-  if (!username || !password) {
-    console.log("缺少用戶名或密碼");
+  if (!username || !email || !password) {
+    console.log("缺少用戶名、電子郵件或密碼");
     return new Response(
-      JSON.stringify({ message: "請提供用戶名和密碼" }),
+      JSON.stringify({ message: "請提供用戶名、電子郵件和密碼" }),
       { status: 400 }
     );
   }
@@ -39,10 +39,19 @@ export async function POST(request) {
       });
     }
 
-    
+    // 驗證 email 是否匹配
+    if (user.email !== email) {
+      console.log("電子郵件不匹配");
+      return new Response(
+        JSON.stringify({ message: "電子郵件不匹配" }),
+        { status: 400 }
+      );
+    }
+
+    // 驗證密碼格式
     const passwordError = validatePassword(password);
     if (passwordError) {
-      console.log("密碼格式無效");
+      console.log("密碼格式無效:", passwordError);
       return new Response(JSON.stringify({ message: passwordError }), {
         status: 400,
       });
@@ -75,12 +84,16 @@ export async function POST(request) {
   }
 }
 
-
 function validatePassword(password) {
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasLowerCase = /[a-z]/.test(password);
-  if (!hasUpperCase || !hasLowerCase) {
-    return "密碼必須至少包含一個大寫字母和一個小寫字母。";
+  const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).+$/;
+  if (!passwordStrengthRegex.test(password)) {
+    return "密碼必須至少包含一個大寫字母、一個小寫字母和一個特殊符號。";
+  }
+  if (password.length < 8 || password.length > 24) {
+    return "密碼長度必須在 8 到 24 個字符之間。";
+  }
+  if (/\s/.test(password)) {
+    return "密碼不能包含空格。";
   }
   return "";
 }

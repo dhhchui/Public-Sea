@@ -214,7 +214,7 @@ export async function GET(request, { params }) {
     const serializedPost = {
       ...post,
       view: post.view.toString(),
-      board: undefined,
+      // 移除 board: undefined，恢復 board 字段
     };
 
     // 將數據儲存到快取，快取 5 分鐘（300秒）

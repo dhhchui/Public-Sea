@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { RegisterForm } from "./register-form";
-import ResetPasswordForm from "./reset-password-form";
+import { RegisterForm } from "./Register-form";
+import ResetPasswordForm from "./Reset-password-form";
 
 export function LoginForm({ className, ...props }) {
   const router = useRouter();

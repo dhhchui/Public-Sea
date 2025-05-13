@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Backdrop } from "./backdrop";
+import { Backdrop } from "./Backdrop";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -153,7 +153,7 @@ export function FollowPanel({ user, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  return (
+return (
     <>
       <Backdrop onClick={onClose} />
       <div className="fixed inset-0 flex items-center justify-center z-60">

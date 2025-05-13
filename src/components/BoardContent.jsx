@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { PostList } from "@/components/post-list";
+import { PostList } from "@/components/Post-list";
 
 export default function BoardContent({ board, boardData }) {
   const router = useRouter();

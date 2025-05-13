@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Backdrop } from "./backdrop";
+import { Backdrop } from "./Backdrop";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +56,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
     }
   }, [isOpen, user]);
 
-  const handleRespondRequest = async (requestId, action) => {
+const handleRespondRequest = async (requestId, action) => {
     try {
       const res = await fetch("/api/friend-request/respond", {
         method: "POST",
@@ -64,7 +64,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
-        body: JSON.stringify({ requestId, action }),
+        body: JSON.stringify({ requestId: parseInt(requestId), action }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -88,7 +88,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
   };
 
   const handleSendFriendRequest = async () => {
-    if (!newFriendQuery) {
+    if (!newFriendQuery.trim()) {
       setError("請輸入用戶名或暱稱");
       return;
     }
@@ -100,7 +100,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
         },
-        body: JSON.stringify({ query: newFriendQuery }),
+        body: JSON.stringify({ query: newFriendQuery.trim() }),
       });
       const searchData = await searchRes.json();
       if (searchRes.ok && searchData.users.length > 0) {
@@ -128,7 +128,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
       setError("發送好友請求時發生錯誤");
     }
   };
-
+  
   if (!isOpen) return null;
 
   return (

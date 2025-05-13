@@ -43,7 +43,7 @@ export default function PostPage() {
   const [likeStatuses, setLikeStatuses] = useState({});
   const router = useRouter();
   const params = useParams();
-  const { postId, board } = params;
+  const { postId } = params;
   const hasFetched = useRef(false);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function PostPage() {
     hasFetched.current = true;
 
     const fetchPost = async () => {
-      console.log('Fetching post with params:', { board, postId });
+      console.log('Fetching post with params:', { postId });
       try {
         const res = await fetch(`/api/view-post/${postId}`, {
           method: 'GET',
@@ -63,6 +63,10 @@ export default function PostPage() {
         const data = await res.json();
         console.log('API response:', data);
         if (res.ok) {
+          if (!data.post.board) {
+            setError('貼文缺少看板資訊');
+            return;
+          }
           setPost(data.post);
         } else {
           setError(data.message || '無法載入貼文');
@@ -212,7 +216,7 @@ export default function PostPage() {
         <div className='w-full max-w-2xl p-6'>
           <p className='text-red-500 text-center'>{error}</p>
           <Button
-            onClick={() => router.push(`/boards/${board}`)}
+            onClick={() => router.push('/boards')}
             className='w-full mt-4'
             variant='secondary'
           >
@@ -244,8 +248,8 @@ export default function PostPage() {
             <Breadcrumb className='w-full'>
               <BreadcrumbList>
                 <BreadcrumbItem className='hidden md:block'>
-                  <BreadcrumbLink href={`/boards/${board}`}>
-                    {decodeURIComponent(board)}
+                  <BreadcrumbLink href={`/boards/${post.board?.name || ''}`}>
+                    {post.board?.name || '未知看板'}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className='hidden md:block' />
@@ -254,53 +258,56 @@ export default function PostPage() {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>
-                  <MessageSquarePlus />
-                  新增留言
-                </Button>
-              </DialogTrigger>
-              <DialogContent className='flex flex-col sm:max-w-[425px] max-h-[96vh]'>
-                <DialogHeader>
-                  <DialogTitle>新增留言</DialogTitle>
-                </DialogHeader>
-                <form
-                  onSubmit={handleCommentSubmit}
-                  className='flex flex-col gap-4'
-                >
-                  <div className='flex-1 overflow-auto'>
-                    <Textarea
-                      value={commentContent}
-                      onChange={(e) => setCommentContent(e.target.value)}
-                      placeholder='撰寫您的留言...'
-                      className='resize-none'
-                      required
-                      disabled={isSubmitting}
-                    />
-                    {error && <p className='text-red-500 mt-2'>{error}</p>}
-                    {successMessage && (
-                      <p className='text-green-500 mt-2'>{successMessage}</p>
-                    )}
-                  </div>
-                  <Button
-                    className='self-start'
-                    type='submit'
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className='animate-spin' /> 提交中
-                      </>
-                    ) : (
-                      <>
-                        <SendHorizontal /> 提交留言
-                      </>
-                    )}
+            {/* 條件渲染：僅在 post 存在時顯示按鈕 */}
+            {post && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <MessageSquarePlus />
+                    新增留言
                   </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className='flex flex-col sm:max-w-[425px] max-h-[96vh]'>
+                  <DialogHeader>
+                    <DialogTitle>新增留言</DialogTitle>
+                  </DialogHeader>
+                  <form
+                    onSubmit={handleCommentSubmit}
+                    className='flex flex-col gap-4'
+                  >
+                    <div className='flex-1 overflow-auto'>
+                      <Textarea
+                        value={commentContent}
+                        onChange={(e) => setCommentContent(e.target.value)}
+                        placeholder='撰寫您的留言...'
+                        className='resize-none'
+                        required
+                        disabled={isSubmitting}
+                      />
+                      {error && <p className='text-red-500 mt-2'>{error}</p>}
+                      {successMessage && (
+                        <p className='text-green-500 mt-2'>{successMessage}</p>
+                      )}
+                    </div>
+                    <Button
+                      className='self-start'
+                      type='submit'
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className='animate-spin' /> 提交中
+                        </>
+                      ) : (
+                        <>
+                          <SendHorizontal /> 提交留言
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </header>
         <Separator />
@@ -342,7 +349,7 @@ export default function PostPage() {
           likeStatuses={likeStatuses}
         />
         <Button
-          onClick={() => router.push(`/boards/${board}`)}
+          onClick={() => router.push(post.board?.name ? `/boards/${post.board.name}` : '/boards')}
           className='w-full max-w-md mt-4'
           variant='secondary'
         >
@@ -352,7 +359,6 @@ export default function PostPage() {
     </>
   );
 }
-
 // 'use client';
 
 // import { useState, useEffect, useRef } from 'react';

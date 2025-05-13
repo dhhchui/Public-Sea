@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Flag, X } from "lucide-react";
-import { Backdrop } from "@/components/backdrop";
+import { Backdrop } from "@/components/Backdrop";
 
 export function NotificationPanel({ user, isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
