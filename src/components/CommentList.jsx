@@ -3,6 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LikeButton from './LikeButton';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
@@ -19,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ChevronDown, ChevronUp, Flag } from 'lucide-react';
 
 export default function CommentList({
   comments: initialComments,
