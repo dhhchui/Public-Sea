@@ -305,7 +305,6 @@ export default function PostPage() {
         </header>
         <Separator />
       </div>
-      {/* <div className='flex justify-center items-center min-h-screen bg-background"'> */}
       <main className='flex flex-col gap-4 p-4'>
         <Card>
           <CardHeader>
@@ -321,7 +320,9 @@ export default function PostPage() {
               {new Date(post.createdAt).toLocaleString()}
             </CardDescription>
           </CardHeader>
-          <CardContent>{post.content}</CardContent>
+          <CardContent>
+            <p>{post.content}</p>
+          </CardContent>
           <CardFooter className='flex gap-2'>
             <LikeButton
               itemId={post.id}

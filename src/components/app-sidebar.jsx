@@ -1,12 +1,21 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { ShipWheel, Search, MessageSquareText, Newspaper, Cpu, CalendarDays, Piano, Users } from "lucide-react";
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import {
+  ShipWheel,
+  Search,
+  MessagesSquare,
+  Newspaper,
+  Cpu,
+  CalendarDays,
+  Piano,
+  Users,
+} from 'lucide-react';
 
-import { NavMain } from "@/components/nav-main";
-import { NavUser } from "@/components/nav-user";
+import { NavMain } from '@/components/nav-main';
+import { NavUser } from '@/components/nav-user';
 import {
   Sidebar,
   SidebarContent,
@@ -16,16 +25,16 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from "@/components/ui/sidebar";
-import SearchBar from "@/components/SearchBar";
-import ChatModal from "@/components/ChatModal";
+} from '@/components/ui/sidebar';
+import SearchBar from '@/components/SearchBar';
+import ChatModal from '@/components/ChatModal';
 
 const iconMap = {
-  "新聞": Newspaper,
-  "科技": Cpu,
-  "生活": CalendarDays,
-  "興趣": Piano,
-  "其他": Users,
+  新聞: Newspaper,
+  科技: Cpu,
+  生活: CalendarDays,
+  興趣: Piano,
+  其他: Users,
 };
 
 export function AppSidebar({ ...props }) {
@@ -37,10 +46,10 @@ export function AppSidebar({ ...props }) {
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        const res = await fetch("/api/boards", {
-          method: "GET",
+        const res = await fetch('/api/boards', {
+          method: 'GET',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         });
         if (res.ok) {
@@ -48,7 +57,7 @@ export function AppSidebar({ ...props }) {
           setBoards(data.boards);
         }
       } catch (error) {
-        console.error("Error fetching boards:", error);
+        console.error('Error fetching boards:', error);
       }
     };
 
@@ -57,11 +66,14 @@ export function AppSidebar({ ...props }) {
 
   useEffect(() => {
     const categories = [
-      { title: "新聞", names: ["時事台", "財經台"] },
-      { title: "科技", names: ["手機台", "電腦台"] },
-      { title: "生活", names: ["飲食台", "上班台", "旅遊台", "校園台"] },
-      { title: "興趣", names: ["學術台", "體育台", "遊戲台", "影視台", "音樂台"] },
-      { title: "其他", names: ["吹水台", "管理台"] },
+      { title: '新聞', names: ['時事台', '財經台'] },
+      { title: '科技', names: ['手機台', '電腦台'] },
+      { title: '生活', names: ['飲食台', '上班台', '旅遊台', '校園台'] },
+      {
+        title: '興趣',
+        names: ['學術台', '體育台', '遊戲台', '影視台', '音樂台'],
+      },
+      { title: '其他', names: ['吹水台', '管理台'] },
     ];
 
     const dynamicItems = categories.map((category) => {
@@ -76,7 +88,7 @@ export function AppSidebar({ ...props }) {
       return {
         title: category.title,
         icon: iconMap[category.title],
-        isActive: category.title === "新聞",
+        isActive: category.title === '新聞',
         items: categoryBoards,
       };
     });
@@ -85,33 +97,36 @@ export function AppSidebar({ ...props }) {
   }, [boards]);
 
   const handleHomeRedirect = () => {
-    router.push("/home");
+    router.push('/home');
   };
 
   return (
     <>
-      <Sidebar collapsible="offcanvas" {...props}>
+      <Sidebar collapsible='offcanvas' {...props}>
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" onClick={() => router.push("/")}>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <ShipWheel className="size-4" />
+              <SidebarMenuButton size='lg' onClick={() => router.push('/')}>
+                <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-secondary text-sidebar-primary-foreground'>
+                  <ShipWheel className='size-4' />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">公海</span>
-                  <span className="truncate text-xs">社交討論區</span>
+                <div className='grid flex-1 text-left text-sm leading-tight'>
+                  <span className='truncate font-semibold'>公海</span>
+                  <span className='truncate text-xs'>社交討論區</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SearchBar />
             </SidebarMenuItem>
-            <SidebarMenuButton tooltip="對話" onClick={() => setIsChatOpen(true)}>
-              <MessageSquareText />
+            <SidebarMenuButton
+              tooltip='對話'
+              onClick={() => setIsChatOpen(true)}
+            >
+              <MessagesSquare />
               <span>對話</span>
             </SidebarMenuButton>
-            <SidebarMenuButton tooltip="返回首頁" onClick={handleHomeRedirect}>
+            <SidebarMenuButton tooltip='返回首頁' onClick={handleHomeRedirect}>
               <span>返回首頁</span>
             </SidebarMenuButton>
           </SidebarMenu>
