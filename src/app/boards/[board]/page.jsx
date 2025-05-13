@@ -47,6 +47,7 @@ export async function generateStaticParams() {
       headers: {
         'Content-Type': 'application/json',
       },
+      next: { revalidate: 86400 }, // 快取 24 小時
     });
 
     if (!res.ok) {
@@ -67,7 +68,8 @@ export async function generateStaticParams() {
 }
 
 export default async function BoardPage({ params, searchParams }) {
-  const { board } = params;
+  // 使用 await 解構 params
+  const { board } = await params;
   const decodedBoard = decodeURIComponent(board); // 解碼 URL 中的中文名稱
 
   try {
@@ -76,6 +78,7 @@ export default async function BoardPage({ params, searchParams }) {
       headers: {
         'Content-Type': 'application/json',
       },
+      next: { revalidate: 86400 }, // 快取 24 小時
     });
 
     if (!res.ok) {

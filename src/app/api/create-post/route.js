@@ -1,6 +1,14 @@
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
-import { NextResponse } from "next/server";
+import Pusher from "pusher";
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
+});
 
 export async function POST(request) {
   console.log("Received POST request to /api/create-post");
@@ -8,32 +16,53 @@ export async function POST(request) {
   try {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided in Authorization header");
-      return NextResponse.json({ message: "No token provided" }, { status: 401 });
+      console.log("No token provided");
+      return new Response(JSON.stringify({ message: "No token provided" }), {
+        status: 401,
+      });
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("Token received:", token);
-
-    if (!token) {
-      console.log("Token is empty or undefined");
-      return NextResponse.json({ message: "Token is empty" }, { status: 401 });
-    }
-
+    console.log("Verifying JWT...");
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Token decoded:", decoded);
+    const userId = decoded.userId;
 
-    const { title, content, board } = await request.json();
-    if (!title || !content || !board) {
-      console.log("Missing required fields:", { title, content, board });
-      return NextResponse.json({ message: "Title, content, and board are required" }, { status: 400 });
+    let data;
+    try {
+      data = await request.json();
+      console.log("Request body:", data);
+    } catch (error) {
+      console.error("Error parsing request body:", error);
+      return new Response(JSON.stringify({ message: "Invalid request body" }), {
+        status: 400,
+      });
     }
 
-    let boardRecord = await prisma.board.findUnique({ where: { name: board } });
-    if (!boardRecord) {
-      console.log(`Board not found, creating new board: ${board}`);
-      boardRecord = await prisma.board.create({
-        data: { name: board },
+    const { title, content, boardId } = data;
+
+    if (!title || !content || !boardId) {
+      console.log("Missing required fields");
+      return new Response(
+        JSON.stringify({ message: "Title, content, and boardId are required" }),
+        { status: 400 }
+      );
+    }
+
+    const boardIdInt = parseInt(boardId);
+    if (isNaN(boardIdInt)) {
+      console.log("Invalid boardId");
+      return new Response(JSON.stringify({ message: "Invalid boardId" }), {
+        status: 400,
+      });
+    }
+
+    const board = await prisma.board.findUnique({
+      where: { id: boardIdInt },
+    });
+    if (!board) {
+      console.log("Board not found");
+      return new Response(JSON.stringify({ message: "Board not found" }), {
+        status: 404,
       });
     }
 
@@ -41,36 +70,76 @@ export async function POST(request) {
       data: {
         title,
         content,
-        authorId: decoded.userId,
-        boardId: boardRecord.id,
-        view: 0,
-        likeCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      include: {
-        author: { select: { username: true } },
-        board: { select: { name: true } },
+        boardId: boardIdInt,
+        authorId: userId,
+        view: BigInt(0),
       },
     });
 
-    console.log("Post created:", post);
+    // 為好友和追蹤者生成新貼文通知
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { friends: true, followerIds: true },
+    });
 
-    // 將 BigInt 轉換為字符串以避免序列化錯誤
+    if (!user) {
+      console.log("User not found");
+      return new Response(JSON.stringify({ message: "User not found" }), {
+        status: 404,
+      });
+    }
+
+    const friends = user.friends || [];
+    const followers = user.followerIds || [];
+    const notificationRecipients = [...new Set([...friends, ...followers])];
+
+    for (const recipientId of notificationRecipients) {
+      if (recipientId === userId) continue;
+
+      const source = friends.includes(recipientId) ? "friend" : "following";
+
+      await prisma.notification.create({
+        data: {
+          userId: recipientId,
+          type: "new_post",
+          source: source, // 設置來源類型
+          relatedId: post.id,
+          senderId: userId,
+          isRead: false,
+        },
+      });
+
+      const message =
+        source === "friend"
+          ? `你的朋友發布了一篇新貼文`
+          : `你追蹤中的用戶發布了一篇新貼文`;
+
+      await pusher.trigger(`user-${recipientId}`, "notification", {
+        type: "new_post",
+        source: source,
+        relatedId: post.id,
+        senderId: userId,
+        message: message,
+      });
+    }
+
     const serializedPost = {
       ...post,
-      view: post.view.toString(), // 將 BigInt 轉為字符串
+      view: post.view.toString(),
     };
 
-    return NextResponse.json({ message: "Post created successfully", post: serializedPost }, { status: 201 });
+    return new Response(
+      JSON.stringify({
+        message: "Post created successfully",
+        post: serializedPost,
+      }),
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error in POST /api/create-post:", error);
-    if (error.name === "JsonWebTokenError") {
-      console.log("JWT Error details:", error.message);
-      return NextResponse.json({ message: "Invalid or malformed token" }, { status: 401 });
-    }
-    return NextResponse.json({ message: "Server error: " + error.message }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return new Response(
+      JSON.stringify({ message: "Server error: " + error.message }),
+      { status: 500 }
+    );
   }
 }

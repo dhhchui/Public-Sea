@@ -30,19 +30,12 @@ export async function POST(request) {
     }
 
     const { requestId, action } = data;
-    if (!requestId || !action) {
-      console.log("Missing requestId or action");
-      return new Response(
-        JSON.stringify({ message: "Request ID and action are required" }),
-        { status: 400 }
-      );
-    }
 
-    if (!["accept", "reject"].includes(action)) {
-      console.log("Invalid action");
+    if (!requestId || !["accept", "reject"].includes(action)) {
+      console.log("Missing requestId or invalid action");
       return new Response(
         JSON.stringify({
-          message: 'Invalid action, must be "accept" or "reject"',
+          message: "Request ID and valid action (accept/reject) are required",
         }),
         { status: 400 }
       );
@@ -51,12 +44,11 @@ export async function POST(request) {
     const requestIdInt = parseInt(requestId);
     if (isNaN(requestIdInt)) {
       console.log("Invalid requestId");
-      return new Response(JSON.stringify({ message: "Invalid request ID" }), {
+      return new Response(JSON.stringify({ message: "Invalid requestId" }), {
         status: 400,
       });
     }
 
-    // 檢查請求是否存在
     const friendRequest = await prisma.friendRequest.findUnique({
       where: { id: requestIdInt },
       include: {
@@ -64,6 +56,7 @@ export async function POST(request) {
         receiver: true,
       },
     });
+
     if (!friendRequest) {
       console.log("Friend request not found");
       return new Response(
@@ -72,60 +65,128 @@ export async function POST(request) {
       );
     }
 
-    // 檢查用戶是否有權處理該請求
     if (friendRequest.receiverId !== userId) {
-      console.log("Unauthorized to respond to this request");
+      console.log(
+        "Unauthorized: You are not the receiver of this friend request"
+      );
       return new Response(
-        JSON.stringify({ message: "Unauthorized to respond to this request" }),
+        JSON.stringify({
+          message:
+            "Unauthorized: You are not the receiver of this friend request",
+        }),
         { status: 403 }
       );
     }
 
-    // 檢查請求是否已處理
     if (friendRequest.status !== "pending") {
-      console.log("Friend request already processed");
+      console.log("Friend request is not pending");
       return new Response(
-        JSON.stringify({ message: "Friend request already processed" }),
+        JSON.stringify({ message: "Friend request is not pending" }),
         { status: 400 }
       );
     }
 
-    // 更新請求狀態
-    await prisma.friendRequest.update({
-      where: { id: requestIdInt },
-      data: { status: action === "accept" ? "accepted" : "rejected" },
-    });
-
-    if (action === "accept") {
-      // 將雙方加入彼此的朋友列表
-      await prisma.user.update({
-        where: { id: friendRequest.senderId },
-        data: {
-          friends: {
-            push: friendRequest.receiverId,
-          },
-        },
-      });
-
-      await prisma.user.update({
-        where: { id: friendRequest.receiverId },
-        data: {
-          friends: {
-            push: friendRequest.senderId,
-          },
-        },
+    if (action === "reject") {
+      await prisma.friendRequest.update({
+        where: { id: requestIdInt },
+        data: { status: "rejected" },
       });
 
       return new Response(
-        JSON.stringify({ message: "Friend request accepted, friends added" }),
-        { status: 200 }
-      );
-    } else {
-      return new Response(
-        JSON.stringify({ message: "Friend request rejected" }),
+        JSON.stringify({ message: "Friend request rejected successfully" }),
         { status: 200 }
       );
     }
+
+    // 如果接受好友請求
+    const senderId = friendRequest.senderId;
+    const receiverId = friendRequest.receiverId;
+
+    await prisma.friendRequest.update({
+      where: { id: requestIdInt },
+      data: { status: "accepted" },
+    });
+
+    // 更新雙方的 friends 列表
+    await prisma.user.update({
+      where: { id: senderId },
+      data: {
+        friends: {
+          push: receiverId,
+        },
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: receiverId },
+      data: {
+        friends: {
+          push: senderId,
+        },
+      },
+    });
+
+    // 自動互助追蹤：更新雙方的 followerIds 和 followedIds
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { followerIds: true, followedIds: true },
+    });
+
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+      select: { followerIds: true, followedIds: true },
+    });
+
+    // 更新發送者的 followerIds 和 followedIds
+    await prisma.user.update({
+      where: { id: senderId },
+      data: {
+        followerIds: {
+          set: [...(sender.followerIds || []), receiverId],
+        },
+        followedIds: {
+          set: [...(sender.followedIds || []), receiverId],
+        },
+        followedCount: { increment: 1 },
+      },
+    });
+
+    // 更新接收者的 followerIds 和 followedIds
+    await prisma.user.update({
+      where: { id: receiverId },
+      data: {
+        followerIds: {
+          set: [...(receiver.followerIds || []), senderId],
+        },
+        followedIds: {
+          set: [...(receiver.followedIds || []), senderId],
+        },
+        followedCount: { increment: 1 },
+      },
+    });
+
+    // 為發送者生成通知
+    await prisma.notification.create({
+      data: {
+        userId: senderId,
+        type: "friend_accept",
+        relatedId: receiverId,
+        senderId: receiverId,
+        isRead: false,
+      },
+    });
+
+    await pusher.trigger(`user-${senderId}`, "notification", {
+      type: "friend_accept",
+      relatedId: receiverId,
+      senderId: receiverId,
+      message: `${friendRequest.receiver.nickname} 接受了你的好友請求`,
+    });
+
+    return new Response(
+      JSON.stringify({ message: "Friend request accepted successfully" }),
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error in POST /api/friend-request/respond:", error);
     return new Response(

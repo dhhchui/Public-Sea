@@ -9,13 +9,10 @@ import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
-  CreditCard,
   Handshake,
   LogIn,
   LogOut,
-  Sparkles,
   UserRoundPlus,
-  Users,
   UserCheck,
 } from "lucide-react";
 import {
@@ -36,6 +33,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FollowPanel } from "@/components/FollowPanel";
 import { FriendPanel } from "@/components/FriendPanel";
+import { NotificationPanel } from "@/components/NotificationPanel";
 
 export function NavUser() {
   const router = useRouter();
@@ -46,6 +44,7 @@ export function NavUser() {
   const [isLoginOverlayOpen, setIsLoginOverlayOpen] = useState(false);
   const [isFollowPanelOpen, setIsFollowPanelOpen] = useState(false);
   const [isFriendPanelOpen, setIsFriendPanelOpen] = useState(false);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
   useEffect(() => {
     const handleUserLoggedIn = (event) => {
@@ -128,6 +127,10 @@ export function NavUser() {
     setIsFriendPanelOpen(true);
   };
 
+  const handleNotificationPanel = () => {
+    setIsNotificationPanelOpen(true);
+  };
+
   if (!isLoggedIn) {
     return (
       <>
@@ -147,7 +150,7 @@ export function NavUser() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
                 align="end"
                 sideOffset={4}
@@ -205,13 +208,14 @@ export function NavUser() {
                   <span className="truncate font-medium">
                     {user?.nickname || user?.username}
                   </span>
-                  <span className="truncate text-xs">{user?.email}</span>
+                  <span className="truncate text-xs">{user?.email}
+                  </span>
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
               side={isMobile ? "bottom" : "right"}
               align="end"
               sideOffset={4}
@@ -246,9 +250,9 @@ export function NavUser() {
                   <Handshake className="mr-2 h-4 w-4" />
                   <span>好友</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNotificationPanel}>
                   <Bell className="mr-2 h-4 w-4" />
-                  <span>通知</span>
+                  <span>通知中心</span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
@@ -263,6 +267,7 @@ export function NavUser() {
 
       <FollowPanel user={user} isOpen={isFollowPanelOpen} onClose={() => setIsFollowPanelOpen(false)} />
       <FriendPanel user={user} isOpen={isFriendPanelOpen} onClose={() => setIsFriendPanelOpen(false)} />
+      <NotificationPanel user={user} isOpen={isNotificationPanelOpen} onClose={() => setIsNotificationPanelOpen(false)} />
     </>
   );
 }

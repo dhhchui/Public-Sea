@@ -15,13 +15,13 @@ export async function POST(request) {
     });
   }
 
-  const { userId, token, password } = data;
+  const { username, password } = data;
 
   // 檢查必要欄位
-  if (!userId || !token || !password) {
-    console.log("缺少必要欄位");
+  if (!username || !password) {
+    console.log("缺少用戶名或密碼");
     return new Response(
-      JSON.stringify({ message: "缺少必要欄位" }),
+      JSON.stringify({ message: "請提供用戶名和密碼" }),
       { status: 400 }
     );
   }
@@ -29,7 +29,7 @@ export async function POST(request) {
   try {
     // 查找用戶
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(userId) },
+      where: { username },
     });
 
     if (!user) {
@@ -39,24 +39,13 @@ export async function POST(request) {
       });
     }
 
-    // 驗證 token
-    if (!user.resetPasswordToken || user.resetPasswordToken !== token) {
-      console.log("無效的重設 token");
-      return new Response(JSON.stringify({ message: "無效的重設 token" }), {
+    
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      console.log("密碼格式無效");
+      return new Response(JSON.stringify({ message: passwordError }), {
         status: 400,
       });
-    }
-
-    // 檢查 token 是否過期
-    if (
-      !user.resetPasswordExpires ||
-      new Date() > new Date(user.resetPasswordExpires)
-    ) {
-      console.log("重設 token 已過期");
-      return new Response(
-        JSON.stringify({ message: "重設 token 已過期" }),
-        { status: 400 }
-      );
     }
 
     // 加密新密碼
@@ -64,25 +53,34 @@ export async function POST(request) {
     const hashedPassword = await argon2.hash(password);
     console.log("新密碼加密成功");
 
-    // 更新用戶密碼並清除 token
+    // 更新用戶密碼
     await prisma.user.update({
-      where: { id: parseInt(userId) },
+      where: { username },
       data: {
         password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
       },
     });
 
     console.log("密碼重設成功");
     return new Response(
-      JSON.stringify({ message: "密碼重設成功" }),
+      JSON.stringify({ message: "密碼重設成功，請使用新密碼登入" }),
       { status: 200 }
     );
   } catch (error) {
     console.error("處理 /api/reset-password 錯誤:", error);
-    return new Response(JSON.stringify({ message: "伺服器錯誤" }), {
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ message: "伺服器錯誤: " + error.message }),
+      { status: 500 }
+    );
   }
+}
+
+
+function validatePassword(password) {
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  if (!hasUpperCase || !hasLowerCase) {
+    return "密碼必須至少包含一個大寫字母和一個小寫字母。";
+  }
+  return "";
 }

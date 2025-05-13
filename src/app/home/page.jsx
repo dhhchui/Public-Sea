@@ -2,19 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Flame } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import PopularPosts from "@/components/PopularPosts";
 
 export default function HomePage() {
   const [boards, setBoards] = useState([]);
-  const [popularPosts, setPopularPosts] = useState([]);
   const [boardName, setBoardName] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -46,28 +44,7 @@ export default function HomePage() {
       }
     };
 
-    const fetchPopularPosts = async () => {
-      try {
-        const res = await fetch("/api/popular-posts", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPopularPosts(data.posts.slice(0, 5));
-        } else {
-          setMessage({ text: "無法載入熱門貼文", type: "error" });
-        }
-      } catch (error) {
-        console.error("Error fetching popular posts:", error);
-        setMessage({ text: "無法載入熱門貼文，可能是伺服器或資料庫連線問題。", type: "error" });
-      }
-    };
-
     fetchBoards();
-    fetchPopularPosts();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -77,39 +54,46 @@ export default function HomePage() {
 
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        setMessage({ text: "請先登入", type: "error" });
+        setTimeout(() => router.push("/login"), 1500);
+        return;
+      }
+
+      const selectedBoard = boards.find((b) => b.name === boardName);
+      if (!selectedBoard) {
+        setMessage({ text: `無效的分台: ${boardName}`, type: "error" });
+        return;
+      }
+
+      const boardId = selectedBoard.id;
+      console.log("Submitting post:", { title, content, boardId });
+
       const res = await fetch("/api/create-post", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, content, board: boardName }),
+        body: JSON.stringify({ title, content, boardId }),
       });
 
       const data = await res.json();
       if (res.ok) {
         setMessage({ text: "貼文創建成功", type: "success" });
-        setTimeout(() => {
-          router.push(`/boards/${boardName}`);
-        }, 1500);
+        setTitle("");
+        setContent("");
+        setTimeout(() => router.push(`/view-post/${data.post.id}`), 1500);
       } else {
-        setMessage({ text: data.message, type: "error" });
+        console.error("API error:", data);
+        setMessage({ text: data.message || "創建貼文失敗", type: "error" });
       }
     } catch (error) {
       console.error("Error creating post:", error);
-      setMessage({ text: "創建貼文失敗，可能是伺服器或資料庫連線問題。", type: "error" });
+      setMessage({ text: `創建貼文失敗: ${error.message}`, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const getIconStyleByRank = (rank) => {
-    const sizes = [24, 22, 20, 18, 16];
-    const opacities = [1, 0.75, 0.5, 0.35, 0.2];
-    return {
-      size: sizes[rank - 1] || 16,
-      opacity: opacities[rank - 1] || 0.2,
-    };
   };
 
   return (
@@ -119,56 +103,7 @@ export default function HomePage() {
           歡迎來到公海社交討論區
         </h1>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-2xl font-semibold text-gray-700">
-              🔥 熱門貼文
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {popularPosts.length === 0 ? (
-              <p className="text-gray-500">暫無熱門貼文</p>
-            ) : (
-              <div className="grid gap-4">
-                {popularPosts.map((post, index) => {
-                  const rank = index + 1;
-                  const { size, opacity } = getIconStyleByRank(rank);
-                  return (
-                    <div
-                      key={post.id}
-                      className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer flex items-start"
-                      onClick={() =>
-                        router.push(`/boards/${post.board.name}/posts/${post.id}`)
-                      }
-                    >
-                      <Flame
-                        className="mr-3 flex-shrink-0 hover:scale-110 transition-all duration-200"
-                        style={{
-                          color: `rgba(255, 82, 82, ${opacity})`,
-                        }}
-                        size={size}
-                      />
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium text-blue-600 hover:underline">
-                          {post.title}
-                        </h3>
-                        <p className="text-gray-600 mt-1 line-clamp-2">
-                          {post.content}
-                        </p>
-                        <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
-                          <span>
-                            由 {post.author.nickname || "未知用戶"} 發佈
-                          </span>
-                          <span>👁️ {post.view}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <PopularPosts />
 
         <Card>
           <CardHeader>
