@@ -1,6 +1,7 @@
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 import Pusher from "pusher";
+import { Redis } from "@upstash/redis";
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -8,6 +9,12 @@ const pusher = new Pusher({
   secret: process.env.PUSHER_SECRET,
   cluster: process.env.PUSHER_CLUSTER,
   useTLS: true,
+});
+
+// 初始化 Upstash Redis 客戶端
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
 export async function POST(request) {
@@ -96,16 +103,29 @@ export async function POST(request) {
         content,
         postId: postIdInt,
         authorId: userId,
-        likeCount: 0, // 明確設置初始 likeCount 為 0
+        likeCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       include: {
         author: {
           select: {
-            username: true, // 包含 author 的 username 字段
+            id: true, // 確保包含 id
+            username: true,
+            nickname: true, // 添加 nickname
+            isRedFlagged: true, // 添加 isRedFlagged
           },
         },
       },
     });
+
+    // 序列化 comment 物件
+    const serializedComment = {
+      ...comment,
+      createdAt: comment.createdAt.toISOString(),
+      updatedAt: comment.updatedAt.toISOString(),
+    };
+    console.log("Created comment:", serializedComment);
 
     // 為貼文作者生成評論通知（如果貼文作者不是評論者自己）
     if (post.author.id !== userId) {
@@ -127,8 +147,26 @@ export async function POST(request) {
       });
     }
 
+    // 失效 /api/view-post/[postId] 的快取
+    try {
+      const cachePattern = `post:view:${postIdInt}:*`;
+      console.log(`Invalidating cache for pattern: ${cachePattern}`);
+      const keys = await redis.keys(cachePattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        console.log(
+          `Invalidated ${keys.length} cache keys for post ${postIdInt}`
+        );
+      }
+    } catch (cacheError) {
+      console.error("Error invalidating cache:", cacheError);
+    }
+
     return new Response(
-      JSON.stringify({ message: "Comment created successfully", comment }),
+      JSON.stringify({
+        message: "Comment created successfully",
+        comment: serializedComment,
+      }),
       { status: 201 }
     );
   } catch (error) {
@@ -137,5 +175,7 @@ export async function POST(request) {
       JSON.stringify({ message: "Server error: " + error.message }),
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

@@ -21,13 +21,13 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarRail,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import SearchBar from '@/components/SearchBar';
 import ChatModal from '@/components/ChatModal';
+import { fetchBoardsData } from '@/lib/cache';
 
 const iconMap = {
   新聞: Newspaper,
@@ -46,16 +46,8 @@ export function AppSidebar({ ...props }) {
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        const res = await fetch('/api/boards', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setBoards(data.boards);
-        }
+        const boardsData = await fetchBoardsData();
+        setBoards(boardsData || []);
       } catch (error) {
         console.error('Error fetching boards:', error);
       }
@@ -68,7 +60,10 @@ export function AppSidebar({ ...props }) {
     const categories = [
       { title: '新聞', names: ['時事台', '財經台'] },
       { title: '科技', names: ['手機台', '電腦台'] },
-      { title: '生活', names: ['飲食台', '上班台', '旅遊台', '校園台'] },
+      {
+        title: '生活',
+        names: ['飲食台', '上班台', '旅遊台', '校園台', '感情台'],
+      },
       {
         title: '興趣',
         names: ['學術台', '體育台', '遊戲台', '影視台', '音樂台'],
@@ -97,7 +92,7 @@ export function AppSidebar({ ...props }) {
   }, [boards]);
 
   const handleHomeRedirect = () => {
-    router.push('/home');
+    router.push('/dashboard');
   };
 
   return (
@@ -137,7 +132,6 @@ export function AppSidebar({ ...props }) {
         <SidebarFooter>
           <NavUser />
         </SidebarFooter>
-        <SidebarRail />
       </Sidebar>
       <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>

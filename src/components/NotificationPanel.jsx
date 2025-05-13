@@ -3,19 +3,14 @@
 import { useState, useEffect } from "react";
 import { Flag, X } from "lucide-react";
 import { Backdrop } from "@/components/backdrop";
-import { useRouter } from "next/navigation";
 
 export function NotificationPanel({ user, isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const router = useRouter();
 
   useEffect(() => {
-    if (!isOpen || !user?.token) {
-      setError("請先登入");
-      return;
-    }
+    if (!isOpen || !user?.token) return;
 
     const fetchNotifications = async () => {
       setIsLoading(true);
@@ -28,12 +23,6 @@ export function NotificationPanel({ user, isOpen, onClose }) {
             Authorization: `Bearer ${user.token}`,
           },
         });
-
-        if (response.status === 401) {
-          setError("請重新登入");
-          setTimeout(() => router.push("/login"), 2000); // 2秒後跳轉到登入頁
-          return;
-        }
 
         if (!response.ok) {
           const data = await response.json();
@@ -50,53 +39,7 @@ export function NotificationPanel({ user, isOpen, onClose }) {
     };
 
     fetchNotifications();
-  }, [isOpen, user, router]);
-
-  // 處理點擊通知，跳轉到聊天對話
-  const handleNotificationClick = async (notification) => {
-    if (!notification.senderId) return; // 如果無發送者，無法跳轉
-
-    try {
-      const token = user?.token;
-      if (!token) {
-        setError("請先登入");
-        router.push("/login");
-        return;
-      }
-
-      // 查詢與發送者的對話
-      const res = await fetch("/api/conversations", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        setError("無法載入對話");
-        return;
-      }
-
-      const data = await res.json();
-      const conversations = data.conversations || [];
-      const conversation = conversations.find(
-        (conv) =>
-          conv.user1Id === notification.senderId ||
-          conv.user2Id === notification.senderId
-      );
-
-      if (conversation) {
-        // 假設聊天頁面可通過路由參數打開對話
-        router.push(`/chat?conversationId=${conversation.id}`);
-        onClose(); // 關閉通知面板
-      } else {
-        setError("未找到對應對話");
-      }
-    } catch (err) {
-      setError("跳轉到對話時發生錯誤");
-    }
-  };
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -121,8 +64,7 @@ export function NotificationPanel({ user, isOpen, onClose }) {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className="border rounded p-3 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleNotificationClick(notification)}
+                  className="border rounded p-3 hover:bg-gray-50"
                 >
                   <p className="text-sm flex items-center">
                     <span

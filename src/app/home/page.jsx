@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PopularPosts from "@/components/PopularPosts";
+import RecommendedUsers from "@/components/RecommendedUsers"; // 導入 RecommendedUsers
+import { fetchBoardsData } from "@/lib/cache";
+import { getPostListCacheKey } from "@/components/post-list";
+import { useSWRConfig } from "swr";
 
 export default function HomePage() {
   const [boards, setBoards] = useState([]);
@@ -19,28 +18,22 @@ export default function HomePage() {
   const [message, setMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { mutate } = useSWRConfig();
 
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        const res = await fetch("/api/boards", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setBoards(data.boards);
-          if (data.boards.length > 0) {
-            setBoardName(data.boards[0].name);
-          }
-        } else {
-          setMessage({ text: "無法載入分台列表", type: "error" });
+        const boardsData = await fetchBoardsData();
+        setBoards(boardsData);
+        if (boardsData.length > 0) {
+          setBoardName(boardsData[0].name);
         }
       } catch (error) {
         console.error("Error fetching boards:", error);
-        setMessage({ text: "無法載入分台列表，可能是伺服器或資料庫連線問題。", type: "error" });
+        setMessage({
+          text: "無法載入分台列表，可能是伺服器或資料庫連線問題。",
+          type: "error",
+        });
       }
     };
 
@@ -83,6 +76,11 @@ export default function HomePage() {
         setMessage({ text: "貼文創建成功", type: "success" });
         setTitle("");
         setContent("");
+        const cacheKey = getPostListCacheKey(boardId);
+        if (cacheKey) {
+          console.log(`Triggering revalidation for cache key: ${cacheKey}`);
+          mutate(cacheKey, undefined, { revalidate: true });
+        }
         setTimeout(() => router.push(`/view-post/${data.post.id}`), 1500);
       } else {
         console.error("API error:", data);
@@ -193,6 +191,8 @@ export default function HomePage() {
             </form>
           </CardContent>
         </Card>
+
+        <RecommendedUsers />
       </div>
     </div>
   );

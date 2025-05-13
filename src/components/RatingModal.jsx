@@ -2,11 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
 
-export default function RatingModal({ ratedUserId, onRatingSubmitted, disabled }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function RatingModal({ ratedUserId, onRatingSubmitted }) {
   const [hasRated, setHasRated] = useState(false);
   const [rating, setRating] = useState(null);
   const [error, setError] = useState("");
@@ -109,7 +106,6 @@ export default function RatingModal({ ratedUserId, onRatingSubmitted, disabled }
           if (onRatingSubmitted) {
             onRatingSubmitted();
           }
-          setIsOpen(false); // 提交後關閉模態框
         } else {
           setError(data.message || "無法提交評分");
         }
@@ -126,54 +122,31 @@ export default function RatingModal({ ratedUserId, onRatingSubmitted, disabled }
   };
 
   return (
-    <>
-      <Button
-        onClick={() => setIsOpen(true)}
-        className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md"
-        disabled={disabled || loading}
-      >
-        評分
-      </Button>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-md p-6 rounded-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">評分用戶</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-gray-600">
-              選擇「讚賞」以提升用戶評分，或「負評」以降低評分。
-            </p>
-            {error && <p className="text-red-500 text-sm bg-red-100 p-2 rounded">{error}</p>}
-            {successMessage && (
-              <p className="text-green-500 text-sm bg-green-100 p-2 rounded">{successMessage}</p>
-            )}
-            {hasRated ? (
-              <p className="text-gray-600 text-center">
-                你已給此用戶評分：{rating === 1 ? "讚賞 (+1)" : "負評 (-1)"}
-              </p>
-            ) : (
-              <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={() => handleRating(1)}
-                  disabled={loading}
-                  className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-2"
-                >
-                  <ThumbsUp className="h-5 w-5" />
-                  讚賞
-                </Button>
-                <Button
-                  onClick={() => handleRating(-1)}
-                  disabled={loading}
-                  className="bg-red-500 hover:bg-red-600 text-white flex items-center gap-2"
-                >
-                  <ThumbsDown className="h-5 w-5" />
-                  負評
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <div className="flex flex-col gap-2">
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {successMessage && <p className="text-green-500 text-sm">{successMessage}</p>}
+      {hasRated ? (
+        <p className="text-gray-600">
+          你已給此用戶評分：{rating === 1 ? "+1" : "-1"}
+        </p>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleRating(1)}
+            disabled={loading}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {loading ? "提交中..." : "+1"}
+          </Button>
+          <Button
+            onClick={() => handleRating(-1)}
+            disabled={loading}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {loading ? "提交中..." : "-1"}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
