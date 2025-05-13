@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
+    "@radix-ui/react-accordion": "^1.2.10",
     "@radix-ui/react-avatar": "^1.1.7",
     "@radix-ui/react-collapsible": "^1.1.8",
     "@radix-ui/react-dialog": "^1.1.13",
@@ -36,9 +37,9 @@
     "pusher-js": "^8.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.0",
-    "swr": "^2.3.3"
-    },
+    "swr": "^2.3.3",
+    "tailwind-merge": "^3.3.0"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
