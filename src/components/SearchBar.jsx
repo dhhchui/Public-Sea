@@ -129,7 +129,7 @@ export default function SearchBar({ onToggle }) {
   };
 
   const handlePostClick = (boardName, postId) => {
-    router.push(`/boards/${boardName}/posts/${postId}`);
+    router.push(`/view-post/${postId}`);
     setIsSearchOpen(false);
     setSearchQuery("");
     setSearchResults({ users: [], posts: [] });
@@ -169,7 +169,8 @@ export default function SearchBar({ onToggle }) {
             搜尋
           </Button>
           {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-          {(searchResults.users.length > 0 || searchResults.posts.length > 0) && (
+          {(searchResults.users.length > 0 ||
+            searchResults.posts.length > 0) && (
             <div className="max-h-60 overflow-y-auto">
               {searchResults.users.length > 0 && (
                 <>
