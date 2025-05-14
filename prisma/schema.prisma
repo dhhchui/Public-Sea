@@ -14,6 +14,7 @@ model Conversation {
   user1        User        @relation("User1Conversations", fields: [user1Id], references: [id])
   user2        User        @relation("User2Conversations", fields: [user2Id], references: [id])
   messages     Message[]
+  notifications Notification[] // 新增反向關聯
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -158,17 +159,19 @@ model User {
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  type      String
-  content   String
-  senderId  Int
-  postId    Int?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation("Notifications", fields: [userId], references: [id])
-  sender    User     @relation("SenderNotifications", fields: [senderId], references: [id])
-  post      Post?    @relation(fields: [postId], references: [id])
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  type           String
+  content        String?
+  senderId       Int
+  postId         Int?
+  conversationId Int?        // 新增 conversationId 欄位
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  user           User        @relation("Notifications", fields: [userId], references: [id])
+  sender         User        @relation("SenderNotifications", fields: [senderId], references: [id])
+  post           Post?       @relation(fields: [postId], references: [id])
+  conversation   Conversation? @relation(fields: [conversationId], references: [id]) // 新增關聯
 
   @@index([userId])
   @@index([createdAt])

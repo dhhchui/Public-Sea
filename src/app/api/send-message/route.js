@@ -118,6 +118,27 @@ export async function POST(request) {
       )}ms`
     );
 
+    // 創建通知
+    const notificationStartTime = performance.now();
+    await prisma.notification.create({
+      data: {
+        userId: receiverIdInt, // 通知接收者
+        senderId, // 訊息發送者
+        conversationId: conversation.id, // 對話 ID
+        type: "PRIVATE_MESSAGE",
+        content:
+          content.length > 50 ? content.substring(0, 47) + "..." : content, // 提供 content 欄位
+        isRead: false,
+        createdAt: new Date(),
+      },
+    });
+    const notificationEndTime = performance.now();
+    console.log(
+      `Notification creation time: ${(
+        notificationEndTime - notificationStartTime
+      ).toFixed(2)}ms`
+    );
+
     // 序列化訊息
     const serializedMessage = {
       ...message,

@@ -40,9 +40,35 @@ export async function POST(request) {
       );
     }
 
+    // 去重並轉為整數
+    const uniqueUserIds = [
+      ...new Set(
+        userIds
+          .map((id) => {
+            const parsedId = parseInt(id);
+            if (isNaN(parsedId)) {
+              console.log(`Invalid user ID: ${id}`);
+              return null;
+            }
+            return parsedId;
+          })
+          .filter((id) => id !== null)
+      ),
+    ]; // 移除無效 ID
+
+    console.log("Unique user IDs after deduplication:", uniqueUserIds);
+
+    if (uniqueUserIds.length === 0) {
+      console.log("No valid user IDs after processing");
+      return new Response(
+        JSON.stringify({ message: "No valid user IDs provided" }),
+        { status: 400 }
+      );
+    }
+
     const users = await prisma.user.findMany({
       where: {
-        id: { in: userIds },
+        id: { in: uniqueUserIds },
       },
       select: {
         id: true,
@@ -50,6 +76,7 @@ export async function POST(request) {
       },
     });
 
+    console.log("Fetched users:", users);
     return new Response(JSON.stringify({ users }), { status: 200 });
   } catch (error) {
     console.error("Error in POST /api/users-by-ids:", error);

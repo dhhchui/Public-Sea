@@ -105,8 +105,25 @@ export async function PATCH(request) {
       );
     }
 
-    const updateData = { nickname, bio, hobbies };
+    const updateData = { nickname, bio };
     let logoutRequired = false;
+
+    // 處理 hobbies，將字符串轉為陣列（如果後端期望 String[]）
+    if (hobbies) {
+      if (typeof hobbies === "string") {
+        hobbies = hobbies
+          .split(",")
+          .map((hobby) => hobby.trim())
+          .filter(Boolean);
+      } else if (!Array.isArray(hobbies)) {
+        console.log("Invalid hobbies format:", hobbies);
+        return new Response(
+          JSON.stringify({ message: "Hobbies must be a string or array" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      updateData.hobbies = hobbies;
+    }
 
     if (password) {
       if (password !== confirmPassword) {

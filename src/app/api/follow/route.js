@@ -85,10 +85,11 @@ export async function POST(request) {
       where: { id: decoded.userId },
     });
 
-    // 確保 followedIds 是一個數組
-    const currentUserFollowedIds = Array.isArray(currentUser.followedIds)
+    // 確保 followedIds 是一個數組，並移除重複 ID
+    let currentUserFollowedIds = Array.isArray(currentUser.followedIds)
       ? currentUser.followedIds
       : [];
+    currentUserFollowedIds = [...new Set(currentUserFollowedIds)]; // 移除重複 ID
     if (currentUserFollowedIds.includes(targetUserIdInt)) {
       console.log("Already following this user");
       return new Response(
@@ -97,14 +98,15 @@ export async function POST(request) {
       );
     }
 
-    // 確保 followerIds 是一個數組
-    const targetUserFollowerIds = Array.isArray(targetUser.followerIds)
+    // 確保 followerIds 是一個數組，並移除重複 ID
+    let targetUserFollowerIds = Array.isArray(targetUser.followerIds)
       ? targetUser.followerIds
       : [];
+    targetUserFollowerIds = [...new Set(targetUserFollowerIds)]; // 移除重複 ID
 
-    // 確保計數欄位已初始化
-    const currentUserFollowedCount = currentUser.followedCount || 0;
-    const targetUserFollowerCount = targetUser.followerCount || 0;
+    // 確保計數欄位與實際 ID 數量一致
+    const currentUserFollowedCount = currentUserFollowedIds.length;
+    const targetUserFollowerCount = targetUserFollowerIds.length;
 
     // 使用 Prisma 事務更新數據
     await prisma.$transaction([

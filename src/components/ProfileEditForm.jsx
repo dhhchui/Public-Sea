@@ -5,42 +5,66 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function ProfileEditForm({
   formData,
+  setFormData = () => {}, // 確保父組件傳入 setFormData
   handleInputChange,
-  handleEditSubmit,
   error,
   successMessage,
   setIsEditing,
 }) {
   const [localError, setLocalError] = useState("");
-  const [oldPassword, setOldPassword] = useState(""); // 新增舊密碼欄位
+  const [oldPassword, setOldPassword] = useState("");
+  const [localHobbies, setLocalHobbies] = useState(
+    Array.isArray(formData.hobbies) ? formData.hobbies : []
+  );
   const router = useRouter();
 
+  const hobbyOptions = [
+    "閱讀",
+    "游泳",
+    "遊戲",
+    "烹飪",
+    "遠足",
+    "攝影",
+    "旅行",
+    "音樂",
+    "跳舞",
+    "繪畫",
+    "寫作",
+    "園藝",
+    "騎行",
+    "瑜伽",
+    "電影",
+  ];
+
+  // 同步 formData.hobbies 到本地狀態
+  useEffect(() => {
+    console.log("formData.hobbies updated:", formData.hobbies);
+    setLocalHobbies(Array.isArray(formData.hobbies) ? formData.hobbies : []);
+  }, [formData.hobbies]);
+
+  // 驗證表單
   const validateForm = () => {
-    // 檢查 nickname 是否包含任何空白字符
     if (/\s/.test(formData.nickname)) {
       setLocalError("暱稱不能包含空格或空白字符");
       return false;
     }
 
-    // 檢查 nickname 長度（至少 3 個字符）
     if (formData.nickname.length < 3) {
       setLocalError("暱稱至少需要 3 個字符");
       return false;
     }
 
-    // 檢查 password 是否包含任何空白字符（如果提供了新密碼）
-    if (formData.password && /\s/.test(formData.password)) {
-      setLocalError("密碼不能包含空格或空白字符");
-      return false;
-    }
-
-    // 檢查 password 長度和格式（如果提供了新密碼）
     if (formData.password) {
+      if (/\s/.test(formData.password)) {
+        setLocalError("密碼不能包含空格或空白字符");
+        return false;
+      }
+
       if (formData.password.length < 8) {
         setLocalError("密碼至少需要 8 個字符");
         return false;
@@ -55,7 +79,7 @@ export default function ProfileEditForm({
         setLocalError("密碼必須包含字母和數字");
         return false;
       }
-      // 如果提供了新密碼，必須提供舊密碼
+
       if (!oldPassword) {
         setLocalError("請輸入舊密碼");
         return false;
@@ -66,6 +90,29 @@ export default function ProfileEditForm({
     return true;
   };
 
+  // 處理 checkbox 變化
+  const handleHobbyChange = (hobby) => {
+    const newHobbies = localHobbies.includes(hobby)
+      ? localHobbies.filter((h) => h !== hobby)
+      : [...localHobbies, hobby];
+
+    console.log("Before update - Local Hobbies:", localHobbies);
+    setLocalHobbies(newHobbies);
+    console.log("After update - Local Hobbies:", newHobbies);
+    // 確保 setFormData 正常運作
+    try {
+      setFormData((prev) => {
+        const updatedFormData = { ...prev, hobbies: newHobbies };
+        console.log("setFormData called - Updated formData:", updatedFormData);
+        return updatedFormData;
+      });
+    } catch (err) {
+      console.error("Error calling setFormData:", err);
+      setLocalError("無法更新興趣，請稍後再試");
+    }
+  };
+
+  // 提交表單
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -74,6 +121,11 @@ export default function ProfileEditForm({
 
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        setLocalError("請先登入");
+        return;
+      }
+
       const res = await fetch("/api/edit-profile", {
         method: "PATCH",
         headers: {
@@ -82,7 +134,8 @@ export default function ProfileEditForm({
         },
         body: JSON.stringify({
           ...formData,
-          oldPassword, // 將舊密碼添加到請求中
+          hobbies: localHobbies.join(","), // 轉為逗號分隔的字符串
+          oldPassword,
         }),
       });
 
@@ -96,7 +149,6 @@ export default function ProfileEditForm({
       const data = await res.json();
       if (res.ok) {
         if (data.logoutRequired) {
-          // 密碼已更新，執行登出
           localStorage.removeItem("user");
           localStorage.removeItem("token");
           window.dispatchEvent(new Event("userLoggedOut"));
@@ -158,16 +210,24 @@ export default function ProfileEditForm({
               htmlFor="hobbies"
               className="text-lg font-medium text-gray-700"
             >
-              興趣（用逗號分隔，例如：閱讀, 跑步, 烹飪）
+              興趣（選擇你喜歡的興趣）
             </Label>
-            <Input
-              id="hobbies"
-              name="hobbies"
-              value={formData.hobbies}
-              onChange={handleInputChange}
-              placeholder="閱讀, 跑步, 烹飪"
-              className="mt-1 p-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              {hobbyOptions.map((hobby) => (
+                <label
+                  key={hobby}
+                  className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-100"
+                >
+                  <input
+                    type="checkbox"
+                    checked={localHobbies.includes(hobby)}
+                    onChange={() => handleHobbyChange(hobby)}
+                    className="form-checkbox h-5 w-5 text-blue-600"
+                  />
+                  <span className="text-sm">{hobby}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div>
             <Label

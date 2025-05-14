@@ -122,6 +122,8 @@ export function NotificationPanel({
         return `${notification.sender?.nickname} 評論了你的貼文`;
       case "FOLLOW":
         return `${senderName} 關注了你`;
+      case "PRIVATE_MESSAGE":
+        return `${senderName} 發送了一條私人訊息`;
       default:
         return "發送了一條通知";
     }
@@ -153,6 +155,21 @@ export function NotificationPanel({
           onClose();
         }
         break;
+      case "PRIVATE_MESSAGE":
+        if (notification.conversationId) {
+          console.log(
+            "Navigating to conversation:",
+            notification.conversationId
+          );
+          router.push(`/conversation/${notification.conversationId}`);
+          onClose();
+        } else {
+          console.error(
+            "Conversation ID is missing for PRIVATE_MESSAGE notification"
+          );
+          setError("無法跳轉到對話：缺少對話 ID");
+        }
+        break;
       default:
         break;
     }
@@ -180,7 +197,7 @@ export function NotificationPanel({
             <p className="text-gray-500">暫無通知</p>
           )}
           {!isLoading && !error && notifications.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
@@ -214,7 +231,7 @@ export function NotificationPanel({
                   )}
                   <button
                     onClick={(e) => {
-                      e.stopPropagation(); // 防止點擊刪除觸發 handleNotificationClick
+                      e.stopPropagation();
                       deleteNotification(notification.id);
                     }}
                     className="ml-2 text-red-500 hover:text-red-700"
@@ -235,6 +252,22 @@ export function NotificationPanel({
           onClose();
         }}
       />
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+      `}</style>
     </>
   );
 }
