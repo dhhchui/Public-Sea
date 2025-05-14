@@ -1,6 +1,15 @@
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import Pusher from "pusher";
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
+});
 
 export async function POST(request) {
   console.log("Received POST request to /api/like");
@@ -46,14 +55,17 @@ export async function POST(request) {
     }
 
     const model = itemType === "post" ? prisma.post : prisma.comment;
+    // 動態選擇欄位
+    const selectFields = {
+      id: true,
+      authorId: true,
+      ...(itemType === "post" ? { title: true } : { content: true }), // 根據 itemType 選擇欄位
+    };
     const item = await model.findUnique({
       where: { id: itemId },
-      select: {
-        id: true,
-        authorId: true,
-        title: itemType === "post" ? true : undefined,
-      },
+      select: selectFields,
     });
+
     if (!item) {
       console.log(`${itemType} not found:`, itemId);
       return NextResponse.json(
@@ -64,7 +76,7 @@ export async function POST(request) {
 
     const likeIdentifier = {
       userId_itemId_itemType: {
-        userId,
+        userId: decoded.userId,
         itemId,
         itemType,
       },
@@ -92,14 +104,14 @@ export async function POST(request) {
         const updatedItem = await tx[itemType].update({
           where: { id: itemId },
           data: { likeCount: { increment: 1 } },
+          select: { likeCount: true },
         });
 
         // 檢查是否為好友，並生成通知
         if (item.authorId !== userId) {
-          // 避免自己點讚自己的貼文生成通知
           const user = await tx.user.findUnique({
             where: { id: userId },
-            select: { nickname: true, friends: true },
+            select: { friends: true, nickname: true },
           });
 
           if (user.friends.includes(item.authorId)) {
@@ -109,7 +121,7 @@ export async function POST(request) {
                 type: "LIKE",
                 content: `${user.nickname || "一位用戶"} 點讚了你的${
                   itemType === "post" ? "貼文" : "評論"
-                }：${item.title || "內容"}`,
+                }`,
                 senderId: userId,
                 postId: itemType === "post" ? itemId : undefined,
                 isRead: false,
@@ -119,6 +131,15 @@ export async function POST(request) {
             console.log(
               `Generated LIKE notification for user ${item.authorId}`
             );
+
+            await pusher.trigger(`user-${item.authorId}`, "notification", {
+              type: "LIKE",
+              senderId: userId,
+              postId: itemType === "post" ? itemId : undefined,
+              message: `${user.nickname || "一位用戶"} 點讚了你的${
+                itemType === "post" ? "貼文" : "評論"
+              }`,
+            });
           }
         }
 

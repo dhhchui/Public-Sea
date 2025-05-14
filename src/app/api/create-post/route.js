@@ -3,13 +3,11 @@ import jwt from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 
-// 初始化 Upstash Redis 客戶端
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// 在 /api/post-list 中記錄快取鍵（假設已實現）
 const addPostListCacheKey = async (boardId, userId) => {
   const key = `posts:board:${boardId}:user:${userId || "anonymous"}`;
   const keyList = `posts:board:${boardId}:keys`;
@@ -32,9 +30,37 @@ export async function POST(request) {
 
     const token = authHeader.split(" ")[1];
     console.log("Token received:", token);
+
+    // 檢查 token 是否在黑名單中
+    const isBlacklisted = await redis.get(`blacklist:${token}`);
+    if (isBlacklisted) {
+      console.log("Token is blacklisted");
+      return NextResponse.json(
+        { message: "Token has been invalidated due to logout" },
+        { status: 401 }
+      );
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
     console.log("Decoded JWT userId:", userId);
+
+    if (!userId || isNaN(userId)) {
+      console.log("Invalid userId in token");
+      return NextResponse.json(
+        { message: "Invalid token: userId missing or invalid" },
+        { status: 401 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, nickname: true, friends: true, followedIds: true },
+    });
+    if (!user) {
+      console.log("User not found");
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
 
     const { title, content, boardId } = await request.json();
     if (!title || !content || !boardId) {
@@ -56,13 +82,6 @@ export async function POST(request) {
       },
     });
 
-    // 獲取用戶資訊（包括 nickname 和好友/關注者）
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { nickname: true, friends: true, followedIds: true },
-    });
-
-    // 為好友和關注者生成通知
     const recipients = [
       ...new Set([...(user.friends || []), ...(user.followedIds || [])]),
     ];
@@ -84,13 +103,11 @@ export async function POST(request) {
       );
     }
 
-    // 序列化 post 物件，將 BigInt 欄位轉為字串
     const serializedPost = {
       ...post,
       view: post.view.toString(),
     };
 
-    // 失效相關分台的快取
     try {
       const keyList = `posts:board:${boardId}:keys`;
       console.log(`Invalidating cache for key list: ${keyList}`);
@@ -113,6 +130,12 @@ export async function POST(request) {
     return NextResponse.json({ post: serializedPost }, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/create-post:", error);
+    if (error.name === "JsonWebTokenError") {
+      return NextResponse.json(
+        { message: "Invalid or expired token" },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { message: "Server error: " + error.message },
       { status: 500 }

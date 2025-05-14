@@ -85,13 +85,40 @@ export function NavUser() {
     setIsLoginOverlayOpen(!isLoginOverlayOpen);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const response = await fetch("/api/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          console.error("Logout failed:", data.message);
+        } else {
+          console.log("Logout successful:", data.message);
+        }
+      } catch (error) {
+        console.error("Error during logout:", error);
+      }
+    }
+
     localStorage.removeItem("user");
     localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("token");
     setUser(null);
     setIsLoggedIn(false);
-    window.dispatchEvent(new Event("userLoggedOut")); // 觸發登出事件
+    window.dispatchEvent(new Event("userLoggedOut"));
     router.push("/");
+
+    console.log("After logout - token:", localStorage.getItem("token"));
+    console.log(
+      "After logout - isLoggedIn:",
+      localStorage.getItem("isLoggedIn")
+    );
   };
 
   const handleProfileClick = async () => {

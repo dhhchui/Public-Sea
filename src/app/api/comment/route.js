@@ -11,7 +11,6 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-// 初始化 Upstash Redis 客戶端
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -19,6 +18,7 @@ const redis = new Redis({
 
 export async function POST(request) {
   console.log("Received POST request to /api/comment");
+  const startTime = performance.now();
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -33,6 +33,29 @@ export async function POST(request) {
     console.log("Verifying JWT...");
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.userId;
+
+    // 檢查 userId 是否有效
+    if (!userId || isNaN(userId)) {
+      console.log("Invalid userId in token");
+      return new Response(
+        JSON.stringify({ message: "Invalid token: userId missing or invalid" }),
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // 可選：檢查用戶是否存在
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, nickname: true, username: true },
+    });
+    if (!user) {
+      console.log("User not found");
+      return new Response(JSON.stringify({ message: "User not found" }), {
+        status: 404,
+      });
+    }
 
     let data;
     try {
@@ -69,6 +92,7 @@ export async function POST(request) {
         author: {
           select: {
             id: true,
+            nickname: true,
           },
         },
       },
@@ -110,16 +134,15 @@ export async function POST(request) {
       include: {
         author: {
           select: {
-            id: true, // 確保包含 id
+            id: true,
             username: true,
-            nickname: true, // 添加 nickname
-            isRedFlagged: true, // 添加 isRedFlagged
+            nickname: true,
+            isRedFlagged: true,
           },
         },
       },
     });
 
-    // 序列化 comment 物件
     const serializedComment = {
       ...comment,
       createdAt: comment.createdAt.toISOString(),
@@ -127,27 +150,32 @@ export async function POST(request) {
     };
     console.log("Created comment:", serializedComment);
 
-    // 為貼文作者生成評論通知（如果貼文作者不是評論者自己）
     if (post.author.id !== userId) {
       await prisma.notification.create({
         data: {
           userId: post.author.id,
           type: "comment",
-          relatedId: postIdInt,
+          content: `${
+            comment.author.nickname || comment.author.username || "一位用戶"
+          } 評論了你的貼文`,
           senderId: userId,
+          postId: postIdInt,
           isRead: false,
+          createdAt: new Date(),
         },
       });
+      console.log(`Generated comment notification for user ${post.author.id}`);
 
       await pusher.trigger(`user-${post.author.id}`, "notification", {
         type: "comment",
-        relatedId: postIdInt,
+        postId: postIdInt,
         senderId: userId,
-        message: "你的貼文收到了一條新評論",
+        message: `${
+          comment.author.nickname || comment.author.username || "一位用戶"
+        } 評論了你的貼文`,
       });
     }
 
-    // 失效 /api/view-post/[postId] 的快取
     try {
       const cachePattern = `post:view:${postIdInt}:*`;
       console.log(`Invalidating cache for pattern: ${cachePattern}`);
@@ -162,6 +190,8 @@ export async function POST(request) {
       console.error("Error invalidating cache:", cacheError);
     }
 
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
     return new Response(
       JSON.stringify({
         message: "Comment created successfully",
@@ -171,6 +201,14 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error("Error in POST /api/comment:", error);
+    if (error.name === "JsonWebTokenError") {
+      return new Response(
+        JSON.stringify({ message: "Invalid or expired token" }),
+        {
+          status: 401,
+        }
+      );
+    }
     return new Response(
       JSON.stringify({ message: "Server error: " + error.message }),
       { status: 500 }

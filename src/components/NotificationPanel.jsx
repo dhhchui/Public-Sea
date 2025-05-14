@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Circle, Flag, X } from "lucide-react"; // 新增 Circle 圖標用於紅點
+import { Circle, Flag, X } from "lucide-react";
 import { Backdrop } from "@/components/backdrop";
 import { useRouter } from "next/navigation";
 import { FriendPanel } from "@/components/FriendPanel";
@@ -68,7 +68,7 @@ export function NotificationPanel({
           )
         );
         if (onNotificationRead) {
-          onNotificationRead(); // 通知父組件更新未讀數量
+          onNotificationRead();
         }
       } else {
         const data = await response.json();
@@ -94,6 +94,8 @@ export function NotificationPanel({
         return `${senderName} 發布了一篇新貼文`;
       case "LIKE":
         return `${senderName} 點讚了你的貼文`;
+      case "comment":
+        return `${senderName} 評論了你的貼文`; // 添加 comment 類型描述
       case "FOLLOW":
         return `${senderName} 關注了你`;
       default:
@@ -102,20 +104,19 @@ export function NotificationPanel({
   };
 
   const handleNotificationClick = (notification) => {
-    // 標記通知為已讀
     if (!notification.isRead) {
       markAsRead(notification.id);
     }
 
-    // 根據通知類型跳轉
     switch (notification.type) {
       case "FRIEND_REQUEST":
         setIsFriendPanelOpen(true);
         break;
       case "POST":
       case "LIKE":
+      case "comment": // 添加 comment 類型跳轉
         if (notification.postId) {
-          router.push(`/post/${notification.postId}`);
+          router.push(`/view-post/${notification.postId}`);
           onClose();
         }
         break;
