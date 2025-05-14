@@ -3,7 +3,6 @@ import jwt from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 
-// 初始化 Upstash Redis 客戶端
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -11,9 +10,9 @@ const redis = new Redis({
 
 export async function GET(request) {
   console.log("Received GET request to /api/recommend-users");
+  const startTime = performance.now();
 
   try {
-    // 驗證用戶身份
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.log("No token provided in Authorization header");
@@ -29,25 +28,27 @@ export async function GET(request) {
     const userId = decoded.userId;
     console.log("Decoded JWT userId:", userId);
 
-    // 定義快取鍵
     const cacheKey = `recommend:users:${userId}`;
     console.log("Checking cache for key:", cacheKey);
 
-    // 嘗試從 Redis 獲取快取數據
     const cachedRecommendations = await redis.get(cacheKey);
     if (cachedRecommendations) {
       console.log("Returning cached recommendations");
+      const endTime = performance.now();
+      console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
       return NextResponse.json(
         { users: cachedRecommendations },
         { status: 200 }
       );
     }
 
-    // 從資料庫查詢當前用戶
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        hobbies: true,
+        followedIds: true,
+        hobbies: {
+          select: { name: true },
+        },
       },
     });
 
@@ -56,86 +57,96 @@ export async function GET(request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // 獲取封鎖用戶
     const blockRecords = await prisma.block.findMany({
-      where: { blockerId: userId },
-      select: { blockedId: true },
+      where: {
+        OR: [{ blockerId: userId }, { blockedId: userId }],
+      },
+      select: {
+        blockerId: true,
+        blockedId: true,
+      },
     });
-    const blockedUsers = blockRecords.map((record) => record.blockedId);
 
-    const blockedByRecords = await prisma.block.findMany({
-      where: { blockedId: userId },
-      select: { blockerId: true },
-    });
-    const usersWhoBlockedMe = blockedByRecords.map(
-      (record) => record.blockerId
-    );
+    const blockedUserIds = [
+      ...new Set([
+        ...blockRecords.map((record) => record.blockerId),
+        ...blockRecords.map((record) => record.blockedId),
+        userId,
+      ]),
+    ];
 
-    const blockedUserIds = [...blockedUsers, ...usersWhoBlockedMe, userId]; // 排除自己和封鎖用戶
-
+    const followedUserIds = currentUser.followedIds || [];
     let recommendedUsers = [];
 
-    // 情況 1：hobbies 為空，隨機推薦
-    if (!currentUser.hobbies || currentUser.hobbies.length === 0) {
+    const currentUserHobbies = currentUser.hobbies.map((hobby) => hobby.name);
+
+    if (!currentUserHobbies || currentUserHobbies.length === 0) {
       console.log("User has no hobbies, recommending random users");
       recommendedUsers = await prisma.user.findMany({
         where: {
-          id: { notIn: blockedUserIds },
+          id: { notIn: [...blockedUserIds, ...followedUserIds] },
+          isRedFlagged: false,
         },
         select: {
           id: true,
           username: true,
           nickname: true,
-          hobbies: true,
+          hobbies: {
+            select: { name: true },
+          },
         },
-        take: 5, // 推薦 5 個用戶
+        take: 5,
         orderBy: {
-          id: "asc", // 簡單隨機（可使用隨機排序，但 Prisma 不直接支援）
+          id: "asc",
         },
       });
     } else {
-      // 情況 2：有 hobbies，優先推薦相同 hobbies 的用戶
-      console.log("User has hobbies, recommending users with matching hobbies");
-      recommendedUsers = await prisma.user.findMany({
+      const matchingUsers = await prisma.hobby.findMany({
         where: {
-          id: { notIn: blockedUserIds },
-          hobbies: {
-            hasSome: currentUser.hobbies, // 查找有至少一個相同 hobby 的用戶
-          },
+          name: { in: currentUserHobbies },
+          userId: { notIn: [...blockedUserIds, ...followedUserIds, userId] },
         },
         select: {
-          id: true,
-          username: true,
-          nickname: true,
-          hobbies: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              nickname: true,
+              hobbies: {
+                select: { name: true },
+              },
+              isRedFlagged: true,
+            },
+          },
         },
-        take: 5, // 最多 5 個
-        orderBy: {
-          followerCount: "desc",
-        },
+        distinct: ["userId"],
+        take: 5,
       });
 
-      // 情況 3：如果不足 5 個，補充共同評論的用戶
+      recommendedUsers = matchingUsers
+        .map((hobby) => hobby.user)
+        .filter((user) => !user.isRedFlagged);
+
       if (recommendedUsers.length < 5) {
         console.log(
           "Not enough users with matching hobbies, recommending users from shared comments"
         );
         const remainingCount = 5 - recommendedUsers.length;
 
-        // 查找當前用戶的評論
         const userComments = await prisma.comment.findMany({
           where: { authorId: userId },
           select: { postId: true },
+          take: 10,
         });
         const userPostIds = userComments.map((comment) => comment.postId);
 
         if (userPostIds.length > 0) {
-          // 查找在同一貼文下留言的其他用戶
           const sharedCommentUsers = await prisma.comment.findMany({
             where: {
               postId: { in: userPostIds },
-              authorId: { notIn: blockedUserIds },
-              NOT: { authorId: userId }, // 排除自己
+              authorId: {
+                notIn: [...blockedUserIds, ...followedUserIds, userId],
+              },
             },
             select: {
               author: {
@@ -143,7 +154,10 @@ export async function GET(request) {
                   id: true,
                   username: true,
                   nickname: true,
-                  hobbies: true,
+                  hobbies: {
+                    select: { name: true },
+                  },
+                  isRedFlagged: true,
                 },
               },
             },
@@ -151,18 +165,17 @@ export async function GET(request) {
             take: remainingCount,
           });
 
-          const additionalUsers = sharedCommentUsers.map(
-            (comment) => comment.author
-          );
+          const additionalUsers = sharedCommentUsers
+            .map((comment) => comment.author)
+            .filter((user) => !user.isRedFlagged);
           recommendedUsers = [
             ...recommendedUsers,
             ...additionalUsers.filter(
               (user) => !recommendedUsers.some((u) => u.id === user.id)
             ),
-          ].slice(0, 5); // 確保總數不超過 5
+          ].slice(0, 5);
         }
 
-        // 情況 4：如果仍不足 5 個，隨機補充直到滿足 5 個或用盡用戶列表
         if (recommendedUsers.length < 5) {
           const remainingCountFinal = 5 - recommendedUsers.length;
           const randomUsers = await prisma.user.findMany({
@@ -170,15 +183,19 @@ export async function GET(request) {
               id: {
                 notIn: [
                   ...blockedUserIds,
+                  ...followedUserIds,
                   ...recommendedUsers.map((u) => u.id),
                 ],
               },
+              isRedFlagged: false,
             },
             select: {
               id: true,
               username: true,
               nickname: true,
-              hobbies: true,
+              hobbies: {
+                select: { name: true },
+              },
             },
             take: remainingCountFinal,
             orderBy: {
@@ -190,9 +207,17 @@ export async function GET(request) {
       }
     }
 
-    // 將推薦結果儲存到快取，快取 5 分鐘（300秒）
-    await redis.set(cacheKey, recommendedUsers, { ex: 300 });
+    // 格式化 hobbies 為陣列
+    recommendedUsers = recommendedUsers.map((user) => ({
+      ...user,
+      hobbies: user.hobbies.map((hobby) => hobby.name),
+    }));
+
+    await redis.set(cacheKey, recommendedUsers, { ex: 1800 });
     console.log("Recommendations cached successfully");
+
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
 
     return NextResponse.json({ users: recommendedUsers }, { status: 200 });
   } catch (error) {

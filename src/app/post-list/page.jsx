@@ -3,25 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-// 真實的 boardId 到 name 和 slug 的映射
-const boardMap = [
-  { id: 1, name: "吹水台", slug: "吹水台" },
-  { id: 2, name: "管理台", slug: "管理台" },
-  { id: 3, name: "學術台", slug: "學術台" },
-  { id: 4, name: "時事台", slug: "時事台" },
-  { id: 5, name: "財經台", slug: "財經台" },
-  { id: 6, name: "手機台", slug: "手機台" },
-  { id: 7, name: "電腦台", slug: "電腦台" },
-  { id: 8, name: "飲食台", slug: "飲食台" },
-  { id: 9, name: "上班台", slug: "上班台" },
-  { id: 10, name: "旅遊台", slug: "旅遊台" },
-  { id: 11, name: "校園台", slug: "校園台" },
-  { id: 12, name: "體育台", slug: "體育台" },
-  { id: 13, name: "遊戲台", slug: "遊戲台" },
-  { id: 14, name: "影視台", slug: "影視台" },
-  { id: 15, name: "音樂台", slug: "音樂台" },
-];
-
 export default function PostsPage() {
   const [posts, setPosts] = useState([]);
   const [boardFilterId, setBoardFilterId] = useState("");
@@ -41,6 +22,8 @@ export default function PostsPage() {
         if (res.ok) {
           const data = await res.json();
           setBoards(data.boards);
+        } else {
+          console.error("Failed to fetch boards:", res.status);
         }
       } catch (error) {
         console.error("錯誤載入看板:", error);
@@ -61,6 +44,7 @@ export default function PostsPage() {
           return;
         }
 
+        console.log("Fetching posts with URL:", url);
         const res = await fetch(url, {
           method: "GET",
           headers: {
@@ -70,10 +54,15 @@ export default function PostsPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setPosts(data.posts);
+          console.log("Posts fetched:", data.posts);
+          setPosts(data.posts || []);
+        } else {
+          console.error("Failed to fetch posts:", res.status);
+          setPosts([]);
         }
       } catch (error) {
         console.error("錯誤載入貼文:", error);
+        setPosts([]);
       }
     };
 
@@ -81,9 +70,13 @@ export default function PostsPage() {
   }, [boardFilterId, categoryFilter]);
 
   const categories = {
-    lifestyle: ["吹水台", "美食天地", "旅遊分享"],
-    tech: ["科技討論"],
-    news: ["current-affairs"],
+    lifestyle: ["吹水台", "飲食台", "旅遊台"],
+    tech: ["手機台", "電腦台"],
+    news: ["時事台"],
+    work: ["管理台", "上班台"],
+    education: ["學術台", "校園台"],
+    sports: ["體育台"],
+    entertainment: ["遊戲台", "影視台", "音樂台"],
   };
 
   const filteredBoards =
@@ -112,6 +105,10 @@ export default function PostsPage() {
             <option value="lifestyle">生活</option>
             <option value="tech">科技</option>
             <option value="news">新聞</option>
+            <option value="work">工作</option>
+            <option value="education">教育</option>
+            <option value="sports">運動</option>
+            <option value="entertainment">娛樂</option>
           </select>
 
           <div className="flex flex-wrap gap-2 mt-2">
@@ -147,26 +144,29 @@ export default function PostsPage() {
           <p className="text-center">未找到貼文。</p>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                onClick={() => {
-                  const boardSlug = boardMap.find((b) => b.id === post.boardId)?.slug || "時事台";
-                  router.push(`/boards/${boardSlug}/posts/${post.id}`);
-                }}
-                className="p-4 bg-white border rounded shadow-md cursor-pointer hover:bg-gray-50"
-              >
-                <h3 className="text-xl font-bold">{post.title}</h3>
-                <p className="text-gray-700">{post.content}</p>
-                <p className="text-gray-500 text-sm">
-                  由 {post.author?.nickname || "未知"} 於{" "}
-                  {new Date(post.createdAt).toLocaleString()} 發佈
-                </p>
-                <p className="text-gray-500 text-sm">
-                  按讚數: {post.likeCount} | 瀏覽次數: {post.view}
-                </p>
-              </div>
-            ))}
+            {posts.map((post) => {
+              const board = boards.find((b) => b.id === post.boardId);
+              const boardSlug = board ? board.name : "時事台"; // 使用看板名稱作為 slug
+              return (
+                <div
+                  key={post.id}
+                  onClick={() => {
+                    router.push(`/boards/${boardSlug}/posts/${post.id}`);
+                  }}
+                  className="p-4 bg-white border rounded shadow-md cursor-pointer hover:bg-gray-50"
+                >
+                  <h3 className="text-xl font-bold">{post.title}</h3>
+                  <p className="text-gray-700">{post.content}</p>
+                  <p className="text-gray-500 text-sm">
+                    由 {post.author?.nickname || "未知"} 於{" "}
+                    {new Date(post.createdAt).toLocaleString()} 發佈
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    按讚數: {post.likeCount} | 瀏覽次數: {post.view}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

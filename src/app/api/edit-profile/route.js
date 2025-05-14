@@ -50,7 +50,7 @@ export async function PATCH(request) {
       oldPassword = oldPassword ? oldPassword.trim() : "";
     }
 
-    // 使用正規表達式檢查任何空白字符（包括空格、全形空格等）
+    // 檢查 nickname 是否包含空白字符
     if (/\s/.test(nickname)) {
       console.log("Nickname contains whitespace characters:", nickname);
       return new Response(
@@ -108,21 +108,31 @@ export async function PATCH(request) {
     const updateData = { nickname, bio };
     let logoutRequired = false;
 
-    // 處理 hobbies，將字符串轉為陣列（如果後端期望 String[]）
+    // 處理 hobbies
     if (hobbies) {
-      if (typeof hobbies === "string") {
-        hobbies = hobbies
-          .split(",")
-          .map((hobby) => hobby.trim())
-          .filter(Boolean);
-      } else if (!Array.isArray(hobbies)) {
+      if (!Array.isArray(hobbies)) {
         console.log("Invalid hobbies format:", hobbies);
         return new Response(
-          JSON.stringify({ message: "Hobbies must be a string or array" }),
+          JSON.stringify({ message: "Hobbies must be an array" }),
           { status: 400, headers: { "Content-Type": "application/json" } }
         );
       }
-      updateData.hobbies = hobbies;
+
+      // 移除現有的 Hobby 記錄
+      console.log("Deleting existing hobbies for user:", decoded.userId);
+      await prisma.hobby.deleteMany({
+        where: { userId: decoded.userId },
+      });
+
+      // 創建新的 Hobby 記錄（如果有 hobbies 數據）
+      if (hobbies.length > 0) {
+        console.log("Creating new hobbies for user:", decoded.userId);
+        updateData.hobbies = {
+          create: hobbies.map((hobby) => ({
+            name: hobby.trim(),
+          })),
+        };
+      }
     }
 
     if (password) {
@@ -255,10 +265,7 @@ export async function PATCH(request) {
     }
     return new Response(
       JSON.stringify({ message: "Server error: " + error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 export default function ProfileEditForm({
   formData,
-  setFormData = () => {}, // 確保父組件傳入 setFormData
+  setFormData = () => {},
   handleInputChange,
   error,
   successMessage,
@@ -46,6 +46,27 @@ export default function ProfileEditForm({
     console.log("formData.hobbies updated:", formData.hobbies);
     setLocalHobbies(Array.isArray(formData.hobbies) ? formData.hobbies : []);
   }, [formData.hobbies]);
+
+  // 處理 checkbox 變化
+  const handleHobbyChange = (hobby) => {
+    const newHobbies = localHobbies.includes(hobby)
+      ? localHobbies.filter((h) => h !== hobby)
+      : [...localHobbies, hobby];
+
+    console.log("Before update - Local Hobbies:", localHobbies);
+    setLocalHobbies(newHobbies);
+    console.log("After update - Local Hobbies:", newHobbies);
+    try {
+      setFormData((prev) => {
+        const updatedFormData = { ...prev, hobbies: newHobbies };
+        console.log("setFormData called - Updated formData:", updatedFormData);
+        return updatedFormData;
+      });
+    } catch (err) {
+      console.error("Error calling setFormData:", err);
+      setLocalError("無法更新興趣，請稍後再試");
+    }
+  };
 
   // 驗證表單
   const validateForm = () => {
@@ -90,28 +111,6 @@ export default function ProfileEditForm({
     return true;
   };
 
-  // 處理 checkbox 變化
-  const handleHobbyChange = (hobby) => {
-    const newHobbies = localHobbies.includes(hobby)
-      ? localHobbies.filter((h) => h !== hobby)
-      : [...localHobbies, hobby];
-
-    console.log("Before update - Local Hobbies:", localHobbies);
-    setLocalHobbies(newHobbies);
-    console.log("After update - Local Hobbies:", newHobbies);
-    // 確保 setFormData 正常運作
-    try {
-      setFormData((prev) => {
-        const updatedFormData = { ...prev, hobbies: newHobbies };
-        console.log("setFormData called - Updated formData:", updatedFormData);
-        return updatedFormData;
-      });
-    } catch (err) {
-      console.error("Error calling setFormData:", err);
-      setLocalError("無法更新興趣，請稍後再試");
-    }
-  };
-
   // 提交表單
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -134,7 +133,7 @@ export default function ProfileEditForm({
         },
         body: JSON.stringify({
           ...formData,
-          hobbies: localHobbies.join(","), // 轉為逗號分隔的字符串
+          hobbies: localHobbies, // 直接傳遞陣列
           oldPassword,
         }),
       });
