@@ -18,6 +18,7 @@ const addPostListCacheKey = async (boardId, userId) => {
 
 export async function POST(request) {
   console.log("Received POST request to /api/create-post");
+  const startTime = performance.now();
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -55,6 +56,34 @@ export async function POST(request) {
       },
     });
 
+    // 獲取用戶資訊（包括 nickname 和好友/關注者）
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { nickname: true, friends: true, followedIds: true },
+    });
+
+    // 為好友和關注者生成通知
+    const recipients = [
+      ...new Set([...(user.friends || []), ...(user.followedIds || [])]),
+    ];
+    if (recipients.length > 0) {
+      const notifications = recipients.map((recipientId) => ({
+        userId: recipientId,
+        type: "POST",
+        content: `${user.nickname || "一位用戶"} 發布了新貼文：${title}`,
+        senderId: userId,
+        postId: post.id,
+        isRead: false,
+        createdAt: new Date(),
+      }));
+      await prisma.notification.createMany({
+        data: notifications,
+      });
+      console.log(
+        `Generated ${notifications.length} POST notifications for post ${post.id}`
+      );
+    }
+
     // 序列化 post 物件，將 BigInt 欄位轉為字串
     const serializedPost = {
       ...post,
@@ -71,7 +100,6 @@ export async function POST(request) {
         console.log(
           `Invalidated ${keys.length} cache keys for board ${boardId}`
         );
-        // 同時清空鍵列表
         await redis.del(keyList);
       } else {
         console.log(`No cache keys found for board ${boardId}`);
@@ -80,6 +108,8 @@ export async function POST(request) {
       console.error("Error invalidating cache:", cacheError);
     }
 
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
     return NextResponse.json({ post: serializedPost }, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/create-post:", error);

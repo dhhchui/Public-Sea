@@ -17,7 +17,7 @@ model Conversation {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  @@index([user1Id, user2Id]) // 添加複合索引
+  @@index([user1Id, user2Id])
 }
 
 model Message {
@@ -31,7 +31,7 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
-  @@index([createdAt]) // 添加 createdAt 索引
+  @@index([createdAt])
 }
 
 model Comment {
@@ -68,18 +68,19 @@ model Board {
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
-  title     String
-  content   String
-  authorId  Int
-  likeCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  view      BigInt    @default(0)
-  boardId   Int
-  board     Board     @relation(fields: [boardId], references: [id])
-  comments  Comment[]
-  author    User      @relation("UserPosts", fields: [authorId], references: [id])
+  id           Int         @id @default(autoincrement())
+  title        String
+  content      String
+  authorId     Int
+  likeCount    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  view         BigInt      @default(0)
+  boardId      Int
+  board        Board       @relation(fields: [boardId], references: [id])
+  comments     Comment[]
+  author       User        @relation("UserPosts", fields: [authorId], references: [id])
+  notifications Notification[] // 添加反向關係字段
 
   @@index([createdAt])
 }
@@ -152,19 +153,24 @@ model User {
   receivedRatings     UserRating[]     @relation("ReceivedRatings")
   blockedUsers        Block[]          @relation("Blocker")
   blockedBy           Block[]          @relation("Blocked")
-  notifications       Notification[]   @relation("UserNotifications")
-  sentNotifications   Notification[]   @relation("SenderNotifications")
+  notifications       Notification[]   @relation("Notifications")
+  senderNotifications Notification[]   @relation("SenderNotifications")
 }
 
 model Notification {
   id        Int      @id @default(autoincrement())
   userId    Int
-  type      String  
-  source    String?  
-  relatedId Int      
-  senderId  Int      
+  type      String
+  content   String
+  senderId  Int
+  postId    Int?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  user      User     @relation("UserNotifications", fields: [userId], references: [id])
+  user      User     @relation("Notifications", fields: [userId], references: [id])
   sender    User     @relation("SenderNotifications", fields: [senderId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
 }
