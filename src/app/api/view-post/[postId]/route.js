@@ -52,16 +52,31 @@ export async function GET(request, { params }) {
     const cachedPost = await redis.get(cacheKey);
     if (cachedPost) {
       // 從快取中獲取數據後，獨立更新瀏覽次數
+      let updatedPost; // 更新後
       try {
-        await prisma.post.update({
+        //await prisma.post.update({
+        //where: { id: postIdInt },
+        //data: {
+        //view: { increment: 1 },
+        //},
+        //});
+        updatedPost = await prisma.post.update({
           where: { id: postIdInt },
-          data: {
-            view: { increment: 1 },
-          },
+          data: { view: { increment: 1 } },
+          select: { view: true }, // 只選取 view 字段
         });
       } catch (dbError) {
         console.error("Database error while updating view count:", dbError);
       }
+
+      // 更新緩存中的 view 數
+      const updatedCachedPost = {
+        ...cachedPost,
+        view: updatedPost.view.toString(), // 使用最新的 view 數
+      };
+
+      // 更新 Redis 緩存
+      await redis.set(cacheKey, updatedCachedPost, { ex: 300 });
 
       const endTime = performance.now();
       console.log(
@@ -69,7 +84,7 @@ export async function GET(request, { params }) {
           2
         )}ms`
       );
-      return NextResponse.json({ post: cachedPost }, { status: 200 });
+      return NextResponse.json({ post: updatedCachedPost }, { status: 200 });
     }
 
     // 如果快取不存在，查詢資料庫

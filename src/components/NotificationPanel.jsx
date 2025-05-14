@@ -79,6 +79,30 @@ export function NotificationPanel({
     }
   };
 
+  const deleteNotification = async (notificationId) => {
+    try {
+      const response = await fetch("/api/notifications/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({ notificationId }),
+      });
+
+      if (response.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      } else {
+        const data = await response.json();
+        console.error("Failed to delete notification:", data.message);
+        setError("刪除通知失敗：" + data.message);
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      setError("刪除通知時發生錯誤：" + error.message);
+    }
+  };
+
   const getNotificationMessage = (notification) => {
     const senderName = notification.sender?.nickname || "匿名用戶";
     switch (notification.type) {
@@ -95,7 +119,7 @@ export function NotificationPanel({
       case "LIKE":
         return `${senderName} 點讚了你的貼文`;
       case "comment":
-        return `${senderName} 評論了你的貼文`; // 添加 comment 類型描述
+        return `${notification.sender?.nickname} 評論了你的貼文`;
       case "FOLLOW":
         return `${senderName} 關注了你`;
       default:
@@ -114,7 +138,7 @@ export function NotificationPanel({
         break;
       case "POST":
       case "LIKE":
-      case "comment": // 添加 comment 類型跳轉
+      case "comment":
         if (notification.postId) {
           router.push(`/view-post/${notification.postId}`);
           onClose();
@@ -160,13 +184,13 @@ export function NotificationPanel({
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className="border rounded p-3 hover:bg-gray-50 cursor-pointer flex items-center"
+                  className="border rounded p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between w-full"
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm flex items-center">
                       <span
-                        className={`font-medium ${
+                        className={`font-medium truncate max-w-[120px] ${
                           notification.sender?.isRedFlagged
                             ? "text-red-500"
                             : ""
@@ -177,17 +201,26 @@ export function NotificationPanel({
                       {notification.sender?.isRedFlagged && (
                         <Flag className="ml-1 h-4 w-4 text-red-500" />
                       )}
-                      <span className="ml-1">
+                      <span className="ml-1 truncate">
                         {getNotificationMessage(notification)}
                       </span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-1 truncate">
                       {new Date(notification.createdAt).toLocaleString()}
                     </p>
                   </div>
                   {!notification.isRead && (
-                    <Circle className="h-3 w-3 text-red-500 fill-red-500 ml-2" />
+                    <Circle className="h-3 w-3 text-red-500 fill-red-500 ml-2 flex-shrink-0" />
                   )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // 防止點擊刪除觸發 handleNotificationClick
+                      deleteNotification(notification.id);
+                    }}
+                    className="ml-2 text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
               ))}
             </div>

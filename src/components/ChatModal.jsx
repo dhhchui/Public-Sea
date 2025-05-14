@@ -105,14 +105,14 @@ const ConversationPane = React.memo(
     });
 
     return (
-      <div className="w-2/3 flex flex-col">
+      <div className="w-2/3 flex flex-col h-full">
         <span id="dialog-description" className="sr-only">
           這是一個用於私聊的對話視窗，顯示對話列表和訊息內容。
         </span>
         {selectedConversation ? (
           <>
-            <DialogHeader className="p-4 bg-white border-b border-slate-200 flex items-center">
-              <DialogTitle className="text-lg font-semibold text-slate-800">
+            <DialogHeader className="p-4 bg-blue-500 border-b border-blue-600 flex items-center text-white">
+              <DialogTitle className="text-lg font-semibold">
                 與{" "}
                 {selectedConversation.user1Id === userId
                   ? selectedConversation.user2.nickname
@@ -120,17 +120,21 @@ const ConversationPane = React.memo(
               </DialogTitle>
             </DialogHeader>
 
-            <div className="flex-1 p-4 bg-slate-50">
+            <div
+              className="flex-1 p-4 bg-gray-100 overflow-y-auto"
+              style={{ height: "calc(90vh - 200px)" }}
+            >
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-slate-500">開始聊天吧！</p>
                 </div>
               ) : (
                 <FixedSizeList
-                  height={400}
+                  height={400} // 固定高度，避免被滾動條影響
                   width="100%"
                   itemCount={messages.length}
                   itemSize={100}
+                  className="overflow-hidden" // 確保滾動條不影響布局
                 >
                   {MessageRow}
                 </FixedSizeList>
@@ -138,12 +142,12 @@ const ConversationPane = React.memo(
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 bg-white border-t border-slate-200">
+            <div className="p-4 bg-gray-200 border-t border-gray-300">
               <MessageInput onSendMessage={onSendMessage} />
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-slate-50">
+          <div className="flex-1 flex items-center justify-center bg-gray-100">
             <p className="text-slate-500">選擇一個對話開始聊天</p>
           </div>
         )}
@@ -450,11 +454,9 @@ export default function ChatModal({ isOpen, onClose }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl h-[90vh] flex p-0 rounded-lg shadow-lg border border-slate-200">
-        <div className="w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col">
-          <DialogHeader className="p-4 bg-white border-b border-slate-200">
-            <DialogTitle className="text-lg font-semibold text-slate-800">
-              對話
-            </DialogTitle>
+        <div className="w-1/3 bg-gray-200 border-r border-gray-300 flex flex-col">
+          <DialogHeader className="p-4 bg-blue-500 border-b border-blue-600 flex items-center text-white">
+            <DialogTitle className="text-lg font-semibold">對話</DialogTitle>
           </DialogHeader>
           <div className="p-4 flex-1 overflow-y-auto">
             <div className="flex flex-col gap-2 mb-4">
