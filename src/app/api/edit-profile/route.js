@@ -1,12 +1,9 @@
-import dotenv from "dotenv";
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-
-dotenv.config();
+import * as argon2 from "argon2";
 
 export async function PATCH(request) {
-  console.log("JWT_SECRET in API route:", process.env.JWT_SECRET);
+  console.log("Received PATCH request to /api/edit-profile");
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -14,13 +11,13 @@ export async function PATCH(request) {
       console.log("No token provided");
       return new Response(JSON.stringify({ message: "No token provided" }), {
         status: 401,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
     const token = authHeader.split(" ")[1];
     console.log("Verifying JWT...");
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded token:", decoded);
 
     let data;
     try {
@@ -30,50 +27,221 @@ export async function PATCH(request) {
       console.error("Error parsing request body:", error);
       return new Response(JSON.stringify({ message: "Invalid request body" }), {
         status: 400,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    const { nickname, bio, hobbies, password, confirmPassword } = data;
+    let { nickname, oldPassword, password, confirmPassword, bio, hobbies } =
+      data;
 
-    if (password && password !== confirmPassword) {
-      console.log("Passwords do not match");
-      return new Response(JSON.stringify({ message: "Passwords do not match" }), {
+    if (!nickname) {
+      console.log("Missing required field: nickname");
+      return new Response(JSON.stringify({ message: "Nickname is required" }), {
         status: 400,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    const userId = decoded.userId;
-    const updateData = {
-      ...(nickname && { nickname }),
-      ...(bio && { bio }),
-      ...(hobbies && { hobbies: typeof hobbies === "string" ? [hobbies] : hobbies }), // 將字符串轉為數組
-      ...(password && { password: await bcrypt.hash(password, 10) }),
-    };
+    // 修剪 nickname 和 password（如果存在），移除前後空格
+    nickname = nickname.trim();
+    if (password) {
+      password = password.trim();
+      confirmPassword = confirmPassword.trim();
+      oldPassword = oldPassword ? oldPassword.trim() : "";
+    }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
+    // 使用正規表達式檢查任何空白字符（包括空格、全形空格等）
+    if (/\s/.test(nickname)) {
+      console.log("Nickname contains whitespace characters:", nickname);
+      return new Response(
+        JSON.stringify({
+          message: "Nickname cannot contain spaces or whitespace characters",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (nickname.length < 3) {
+      console.log("Nickname is too short");
+      return new Response(
+        JSON.stringify({
+          message: "Nickname must be at least 3 characters long",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const forbiddenKeywords = [
+      "admin",
+      "administrator",
+      "select",
+      "insert",
+      "update",
+      "delete",
+      "drop",
+      "create",
+      "alter",
+      "truncate",
+      "union",
+      "join",
+      "where",
+      "from",
+      "into",
+      "exec",
+      "execute",
+    ];
+
+    const nicknameLower = nickname.toLowerCase();
+    const containsForbiddenKeyword = (value) =>
+      forbiddenKeywords.some((keyword) => value.includes(keyword));
+
+    if (containsForbiddenKeyword(nicknameLower)) {
+      console.log("Nickname contains forbidden keyword");
+      return new Response(
+        JSON.stringify({
+          message: 'Nickname cannot contain "Admin" or SQL keywords',
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const updateData = { nickname, bio, hobbies };
+    let logoutRequired = false;
+
+    if (password) {
+      if (password !== confirmPassword) {
+        console.log("Passwords do not match");
+        return new Response(
+          JSON.stringify({ message: "Passwords do not match" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (/\s/.test(password)) {
+        console.log("Password contains whitespace characters:", password);
+        return new Response(
+          JSON.stringify({
+            message: "Password cannot contain spaces or whitespace characters",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (password.length < 8) {
+        console.log("Password is too short");
+        return new Response(
+          JSON.stringify({
+            message: "Password must be at least 8 characters long",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (password.length > 24) {
+        console.log("Password is too long");
+        return new Response(
+          JSON.stringify({ message: "Password cannot exceed 24 characters" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const hasLetter = /[a-zA-Z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      if (!hasLetter || !hasNumber) {
+        console.log("Password must contain both letters and numbers");
+        return new Response(
+          JSON.stringify({
+            message: "Password must contain both letters and numbers",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // 驗證舊密碼
+      if (!oldPassword) {
+        console.log("Old password is required");
+        return new Response(
+          JSON.stringify({ message: "Please provide your old password" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Fetching user to verify old password...");
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { password: true },
+      });
+
+      if (!user) {
+        console.log("User not found");
+        return new Response(JSON.stringify({ message: "User not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("Verifying old password...");
+      const isOldPasswordValid = await argon2.verify(
+        user.password,
+        oldPassword
+      );
+      if (!isOldPasswordValid) {
+        console.log("Old password is incorrect");
+        return new Response(
+          JSON.stringify({ message: "Old password is incorrect" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Hashing new password...");
+      const hashedPassword = await argon2.hash(password);
+      updateData.password = hashedPassword;
+      console.log("Password hashed successfully");
+      logoutRequired = true;
+    }
+
+    console.log("Updating user in database...");
+    const updatedUser = await prisma.user.update({
+      where: { id: decoded.userId },
       data: updateData,
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        bio: true,
-        hobbies: true,
-      },
     });
+    console.log("User updated successfully:", updatedUser);
 
-    console.log("User updated successfully:", user);
-    return new Response(JSON.stringify({ user }), { status: 200 });
+    return new Response(
+      JSON.stringify({
+        message: "Profile updated successfully",
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          email: updatedUser.email,
+          nickname: updatedUser.nickname,
+        },
+        logoutRequired,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Error in PATCH /api/edit-profile:", error);
     if (error.name === "JsonWebTokenError") {
       console.log("Invalid token");
       return new Response(JSON.stringify({ message: "Invalid token" }), {
         status: 401,
+        headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ message: "Server error: " + error.message }), {
-      status: 500,
-    });
+    if (error.code === "P2002") {
+      console.log("Nickname already exists");
+      return new Response(
+        JSON.stringify({ message: "Nickname already exists" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return new Response(
+      JSON.stringify({ message: "Server error: " + error.message }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }

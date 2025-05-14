@@ -1,5 +1,6 @@
 import prisma from "../../../../lib/prisma";
 import jwt from "jsonwebtoken";
+import pusher from "pusher";
 
 export async function POST(request) {
   console.log("Received POST request to /api/friend-request/respond");
