@@ -91,10 +91,6 @@ export function AppSidebar({ ...props }) {
     setItems(dynamicItems.filter((item) => item.items.length > 0));
   }, [boards]);
 
-  const handleHomeRedirect = () => {
-    router.push('/dashboard');
-  };
-
   return (
     <>
       <Sidebar collapsible='offcanvas' {...props}>
@@ -120,9 +116,6 @@ export function AppSidebar({ ...props }) {
             >
               <MessagesSquare />
               <span>對話</span>
-            </SidebarMenuButton>
-            <SidebarMenuButton tooltip='返回首頁' onClick={handleHomeRedirect}>
-              <span>返回首頁</span>
             </SidebarMenuButton>
           </SidebarMenu>
         </SidebarHeader>

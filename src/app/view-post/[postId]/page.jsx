@@ -308,9 +308,9 @@ export default function PostPage() {
       <main className='flex flex-col gap-4 p-4'>
         <Card>
           <CardHeader>
-            <CardTitle className='text-lg'>{post.title}</CardTitle>
+            {/* <div className='flex items-center justify-between'> */}
             <Badge
-              variant='outline'
+              variant='secondary'
               className='cursor-pointer'
               onClick={() => router.push(`/user-profile/${post.authorId}`)}
             >
@@ -319,6 +319,8 @@ export default function PostPage() {
             <CardDescription>
               {new Date(post.createdAt).toLocaleString()}
             </CardDescription>
+            <CardTitle className='text-lg'>{post.title}</CardTitle>
+            {/* </div> */}
           </CardHeader>
           <CardContent>
             <p>{post.content}</p>
@@ -341,13 +343,14 @@ export default function PostPage() {
           comments={post.comments}
           likeStatuses={likeStatuses}
         />
-        <Button
+        {/* <Button
           onClick={() => router.push(`/boards/${board}`)}
           className='w-full max-w-md mt-4'
           variant='secondary'
         >
           返回貼文列表
-        </Button>
+        </Button> */}
+        <p className='self-center'>完</p>
       </main>
     </>
   );
