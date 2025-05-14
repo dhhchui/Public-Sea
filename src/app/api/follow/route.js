@@ -1,15 +1,7 @@
-import prisma from "../../../lib/prisma";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-
-// 加載環境變數
-dotenv.config();
-
 export async function POST(request) {
   console.log("Received POST request to /api/follow");
 
   try {
-    // 驗證 JWT
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.log("No token provided");
@@ -58,7 +50,6 @@ export async function POST(request) {
       );
     }
 
-    // 檢查目標用戶是否存在
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserIdInt },
     });
@@ -71,7 +62,6 @@ export async function POST(request) {
       );
     }
 
-    // 檢查用戶是否試圖關注自己
     if (targetUserIdInt === decoded.userId) {
       console.log("Cannot follow yourself");
       return new Response(
@@ -80,12 +70,10 @@ export async function POST(request) {
       );
     }
 
-    // 檢查是否已經關注
     const currentUser = await prisma.user.findUnique({
       where: { id: decoded.userId },
     });
 
-    // 確保 followedIds 是一個數組
     const currentUserFollowedIds = Array.isArray(currentUser.followedIds)
       ? currentUser.followedIds
       : [];
@@ -97,18 +85,14 @@ export async function POST(request) {
       );
     }
 
-    // 確保 followerIds 是一個數組
     const targetUserFollowerIds = Array.isArray(targetUser.followerIds)
       ? targetUser.followerIds
       : [];
 
-    // 確保計數欄位已初始化
     const currentUserFollowedCount = currentUser.followedCount || 0;
     const targetUserFollowerCount = targetUser.followerCount || 0;
 
-    // 使用 Prisma 事務更新數據
     await prisma.$transaction([
-      // 更新當前用戶的 followedIds 和 followedCount
       prisma.user.update({
         where: { id: decoded.userId },
         data: {
@@ -120,7 +104,6 @@ export async function POST(request) {
           },
         },
       }),
-      // 更新目標用戶的 followerIds 和 followerCount
       prisma.user.update({
         where: { id: targetUserIdInt },
         data: {

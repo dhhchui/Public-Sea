@@ -17,7 +17,7 @@ model Conversation {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  @@index([user1Id, user2Id]) // 添加複合索引
+  @@index([user1Id, user2Id]) // 瘛餃?銴?蝝Ｗ?
 }
 
 model Message {
@@ -31,7 +31,7 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
-  @@index([createdAt]) // 添加 createdAt 索引
+  @@index([createdAt]) // 瘛餃? createdAt 蝝Ｗ?
 }
 
 model Comment {

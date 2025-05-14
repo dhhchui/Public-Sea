@@ -8,19 +8,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Textarea } from '@/components/ui/textarea';
-import { FilePlus } from 'lucide-react';
 
 const categoryMap = {
   吹水台: '其他',
@@ -39,6 +28,7 @@ const categoryMap = {
   遊戲台: '興趣',
   影視台: '興趣',
   音樂台: '興趣',
+  寵物台: '興趣',
 };
 
 export async function generateStaticParams() {
@@ -69,9 +59,8 @@ export async function generateStaticParams() {
 }
 
 export default async function BoardPage({ params, searchParams }) {
-  // 使用 await 解構 params
   const { board } = await params;
-  const decodedBoard = decodeURIComponent(board); // 解碼 URL 中的中文名稱
+  const decodedBoard = decodeURIComponent(board);
 
   try {
     const res = await fetch('http://localhost:3000/api/boards', {
@@ -111,66 +100,12 @@ export default async function BoardPage({ params, searchParams }) {
               />
               <Breadcrumb className='w-full'>
                 <BreadcrumbList>
-                  {/* <BreadcrumbItem className='hidden md:block'>
-                    <BreadcrumbLink href={`/boards/${board}`}>
-                      {decodeURIComponent(board)}
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className='hidden md:block' /> */}
                   <BreadcrumbItem>
                     <BreadcrumbPage>{boardData.name}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>
-                    <FilePlus />
-                    新增留言
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className='flex flex-col sm:max-w-[425px] max-h-[96vh]'>
-                  <DialogHeader>
-                    <DialogTitle>新增留言</DialogTitle>
-                    {/* <DialogDescription>
-                  Make changes to your profile here. Click save when you're
-                  done.
-                  </DialogDescription> */}
-                  </DialogHeader>
-                  <form
-                    // onSubmit={handleCommentSubmit}
-                    className='flex flex-col gap-4'
-                  >
-                    <div className='flex-1 overflow-auto'>
-                      <Textarea
-                        // value={commentContent}
-                        // onChange={(e) => setCommentContent(e.target.value)}
-                        placeholder='撰寫您的留言...'
-                        className='resize-none'
-                        required
-                        // disabled={isSubmitting}
-                      />
-                    </div>
-                    {/* <DialogFooter> */}
-                    <Button
-                      className='self-start'
-                      type='submit'
-                      // disabled={isSubmitting}
-                    >
-                      {/* {isSubmitting ? (
-                        <>
-                          <Loader2 className='animate-spin' /> 提交中
-                        </>
-                      ) : (
-                        <>
-                          <SendHorizontal /> 提交留言
-                        </>
-                      )} */}
-                    </Button>
-                    {/* </DialogFooter> */}
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {/* 移除「新增留言」按鈕 */}
             </div>
           </header>
           <Separator />
@@ -185,9 +120,6 @@ export default async function BoardPage({ params, searchParams }) {
             </div>
             <BoardContent board={decodedBoard} boardData={boardData} />
           </div>
-          {/* <div className='w-1/2 flex items-center justify-center text-gray-500'>
-            請選擇一個話題查看詳情
-          </div> */}
         </main>
       </>
     );

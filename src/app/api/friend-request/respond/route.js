@@ -1,5 +1,5 @@
 import prisma from "../../../../lib/prisma";
-import jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken"; // 添加這行以導入 jsonwebtoken
 
 export async function POST(request) {
   console.log("Received POST request to /api/friend-request/respond");
@@ -98,7 +98,6 @@ export async function POST(request) {
       );
     }
 
-    // 如果接受好友請求
     const senderId = friendRequest.senderId;
     const receiverId = friendRequest.receiverId;
 
@@ -107,7 +106,6 @@ export async function POST(request) {
       data: { status: "accepted" },
     });
 
-    // 更新雙方的 friends 列表
     await prisma.user.update({
       where: { id: senderId },
       data: {
@@ -124,63 +122,6 @@ export async function POST(request) {
           push: senderId,
         },
       },
-    });
-
-    // 自動互助追蹤：更新雙方的 followerIds 和 followedIds
-    const sender = await prisma.user.findUnique({
-      where: { id: senderId },
-      select: { followerIds: true, followedIds: true },
-    });
-
-    const receiver = await prisma.user.findUnique({
-      where: { id: receiverId },
-      select: { followerIds: true, followedIds: true },
-    });
-
-    // 更新發送者的 followerIds 和 followedIds
-    await prisma.user.update({
-      where: { id: senderId },
-      data: {
-        followerIds: {
-          set: [...(sender.followerIds || []), receiverId],
-        },
-        followedIds: {
-          set: [...(sender.followedIds || []), receiverId],
-        },
-        followedCount: { increment: 1 },
-      },
-    });
-
-    // 更新接收者的 followerIds 和 followedIds
-    await prisma.user.update({
-      where: { id: receiverId },
-      data: {
-        followerIds: {
-          set: [...(receiver.followerIds || []), senderId],
-        },
-        followedIds: {
-          set: [...(receiver.followedIds || []), senderId],
-        },
-        followedCount: { increment: 1 },
-      },
-    });
-
-    // 為發送者生成通知
-    await prisma.notification.create({
-      data: {
-        userId: senderId,
-        type: "friend_accept",
-        relatedId: receiverId,
-        senderId: receiverId,
-        isRead: false,
-      },
-    });
-
-    await pusher.trigger(`user-${senderId}`, "notification", {
-      type: "friend_accept",
-      relatedId: receiverId,
-      senderId: receiverId,
-      message: `${friendRequest.receiver.nickname} 接受了你的好友請求`,
     });
 
     return new Response(

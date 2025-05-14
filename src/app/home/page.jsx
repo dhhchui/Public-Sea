@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import PopularPosts from "@/components/PopularPosts";
 import RecommendedUsers from "@/components/RecommendedUsers"; // 導入 RecommendedUsers
 import { fetchBoardsData } from "@/lib/cache";
-import { getPostListCacheKey } from "@/components/post-list";
+import { getPostListCacheKey } from "@/components/Post-list";
 import { useSWRConfig } from "swr";
 
 export default function HomePage() {

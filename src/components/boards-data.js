@@ -1,4 +1,4 @@
-import {
+/* import {
   CalendarDays,
   Cpu,
   Piano,
@@ -62,3 +62,4 @@ export const data = {
 export const allBoards = data.navMain.flatMap((category) =>
   category.items.map((item) => item.title)
 );
+ */

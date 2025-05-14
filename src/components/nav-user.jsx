@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Backdrop } from "@/components/backdrop";
-import { RegisterForm } from "@/components/register-form";
+import { Backdrop } from "@/components/Backdrop";
+import { RegisterForm } from "@/components/Register-form";
 import { LoginForm } from "@/components/login-form";
 import { useRouter } from "next/navigation";
 import {
