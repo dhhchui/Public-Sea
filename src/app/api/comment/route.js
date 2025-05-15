@@ -77,7 +77,12 @@ export const POST = authMiddleware({ required: true })(
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, nickname: true, username: true },
+        select: {
+          id: true,
+          nickname: true,
+          username: true,
+          isRedFlagged: true,
+        },
       });
       if (!user) {
         console.log("User not found");
@@ -112,6 +117,7 @@ export const POST = authMiddleware({ required: true })(
         ...comment,
         createdAt: comment.createdAt.toISOString(),
         updatedAt: comment.updatedAt.toISOString(),
+        isCollapsed: comment.author.isRedFlagged,
       };
 
       if (post.author.id !== userId) {
@@ -129,13 +135,11 @@ export const POST = authMiddleware({ required: true })(
           },
         });
 
-        await pusher.trigger(`user-${post.author.id}`, "notification", {
+        await pusher.trigger(`post-${postIdInt}`, "new-comment", {
           type: "comment",
           postId: postIdInt,
           senderId: userId,
-          message: `${
-            comment.author.nickname || comment.author.username || "一位用戶"
-          } 評論了你的貼文`,
+          comment: serializedComment,
         });
       }
 

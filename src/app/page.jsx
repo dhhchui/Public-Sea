@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import PopularPosts from "@/components/PopularPosts";
 import { fetchBoardsData } from "@/lib/cache";
-//import { getPostListCacheKey } from "@/components/post-list";
+import { getPostListCacheKey } from "@/components/post-list";
 import { useSWRConfig } from "swr";
 
 export default function HomePage() {

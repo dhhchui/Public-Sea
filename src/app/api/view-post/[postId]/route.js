@@ -1,5 +1,4 @@
 import prisma from "../../../../lib/prisma";
-import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import { getRedisClient } from "@/lib/redisClient";
 
@@ -17,15 +16,6 @@ export async function GET(request, { params }) {
       );
     }
 
-    let userId = null;
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      console.log("Verifying JWT...");
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      userId = decoded.userId;
-    }
-
     const { postId } = await params;
     const postIdInt = parseInt(postId);
 
@@ -34,10 +24,11 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: "Invalid postId" }, { status: 400 });
     }
 
-    const cacheKey = `post:view:${postIdInt}:user:${userId || "anonymous"}`;
+    // 統一快取鍵，無需 userId
+    const cacheKey = `post:view:${postIdInt}:anonymous`;
     console.log("Checking cache for key:", cacheKey);
 
-    const redis = getRedisClient(); // 使用全局 Redis 客戶端
+    const redis = getRedisClient();
     const cachedPost = await redis.get(cacheKey);
     if (cachedPost) {
       let updatedPost;
@@ -56,7 +47,7 @@ export async function GET(request, { params }) {
         view: updatedPost.view.toString(),
       };
 
-      await redis.set(cacheKey, updatedCachedPost, { ex: 600 }); // 延長 TTL 至 10 分鐘
+      await redis.set(cacheKey, updatedCachedPost, { ex: 600 });
 
       const endTime = performance.now();
       console.log(
@@ -68,30 +59,6 @@ export async function GET(request, { params }) {
     }
 
     console.log("Cache miss, fetching post from database");
-    let blockedUsers = [];
-    let usersWhoBlockedMe = [];
-    if (userId) {
-      try {
-        const blockRecords = await prisma.block.findMany({
-          where: { blockerId: userId },
-          select: { blockedId: true },
-        });
-        blockedUsers = blockRecords.map((record) => record.blockedId);
-
-        const blockedByRecords = await prisma.block.findMany({
-          where: { blockedId: userId },
-          select: { blockerId: true },
-        });
-        usersWhoBlockedMe = blockedByRecords.map((record) => record.blockerId);
-      } catch (dbError) {
-        console.error("Database error while fetching block records:", dbError);
-        return NextResponse.json(
-          { message: "Failed to fetch blocked users due to database error" },
-          { status: 503 }
-        );
-      }
-    }
-
     let post;
     try {
       const dbStartTime = performance.now();
@@ -142,32 +109,19 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: "Post not found" }, { status: 404 });
     }
 
-    if (userId) {
-      const blockedUserIds = [...blockedUsers, ...usersWhoBlockedMe];
-      if (blockedUserIds.includes(post.authorId)) {
-        console.log("Post author is blocked or has blocked you");
-        return NextResponse.json(
-          { message: "Post author is blocked or has blocked you" },
-          { status: 403 }
-        );
-      }
-
-      post.comments = post.comments
-        .map((comment) => {
-          if (!comment.id || isNaN(comment.id)) {
-            console.error("Invalid comment ID:", comment.id);
-            return null;
-          }
-          if (blockedUserIds.includes(comment.authorId)) {
-            return null;
-          }
-          return {
-            ...comment,
-            isCollapsed: comment.author.isRedFlagged,
-          };
-        })
-        .filter((comment) => comment !== null);
-    }
+    // 過濾紅旗用戶的評論
+    post.comments = post.comments
+      .map((comment) => {
+        if (!comment.id || isNaN(comment.id)) {
+          console.error("Invalid comment ID:", comment.id);
+          return null;
+        }
+        return {
+          ...comment,
+          isCollapsed: comment.author.isRedFlagged,
+        };
+      })
+      .filter((comment) => comment !== null);
 
     try {
       await prisma.post.update({
@@ -185,7 +139,7 @@ export async function GET(request, { params }) {
       view: post.view.toString(),
     };
 
-    await redis.set(cacheKey, serializedPost, { ex: 600 }); // 延長 TTL 至 10 分鐘
+    await redis.set(cacheKey, serializedPost, { ex: 600 });
     console.log("Post cached successfully");
 
     const endTime = performance.now();
