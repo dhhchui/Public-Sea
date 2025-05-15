@@ -1,4 +1,3 @@
-// components/post-list.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,26 +5,25 @@ import useSWR from "swr";
 
 // 自訂 fetcher 函數給 useSWR 使用
 const fetcher = async (url) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("請先登入");
+  const token = localStorage.getItem("token"); // 可選：獲取 token，但不強制要求
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  // 如果有 token，則添加 Authorization 頭部
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(
-      response.status === 401
-        ? "請先登入"
-        : `伺服器錯誤: ${response.status} - ${text}`
-    );
+    throw new Error(`伺服器錯誤: ${response.status} - ${text}`);
   }
 
   const data = await response.json();

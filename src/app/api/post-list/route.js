@@ -1,7 +1,8 @@
-import prisma from "../../../lib/prisma";
+import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { getPostListCacheKey } from "@/lib/cache";
 
 // 初始化 Upstash Redis 客戶端
 const redis = new Redis({
@@ -11,7 +12,7 @@ const redis = new Redis({
 
 // 記錄快取鍵到鍵列表
 const addPostListCacheKey = async (boardId, userId) => {
-  const key = `posts:board:${boardId || "all"}:user:${userId || "anonymous"}`;
+  const key = getPostListCacheKey(boardId, userId);
   const keyList = `posts:board:${boardId || "all"}:keys`;
   await redis.sadd(keyList, key);
   console.log(`Added cache key ${key} to key list ${keyList}`);
@@ -103,14 +104,11 @@ export async function GET(request) {
     }
     console.log("Updated where clause with blocked users:", where);
 
-    const cacheKey = `posts:board:${boardId || "all"}:user:${
-      userId || "anonymous-" + Date.now()
-    }`; // 為未登入用戶添加時間戳，避免混淆
+    const cacheKey = getPostListCacheKey(boardId, userId);
     console.log("Checking cache for key:", cacheKey);
 
     const cachedPosts = await redis.get(cacheKey);
     if (cachedPosts && cachedPosts.length > 0) {
-      // 確保快取不為空
       console.log("Returning cached posts:", cachedPosts);
       return NextResponse.json({ posts: cachedPosts }, { status: 200 });
     }
@@ -132,7 +130,7 @@ export async function GET(request) {
 
     const serializedPosts = posts.map((post) => ({
       ...post,
-      view: post.view.toString(),
+      view: post.view.toString(), // 將 BigInt 轉為字符串
     }));
 
     await redis.set(cacheKey, serializedPosts, { ex: 300 });
