@@ -103,7 +103,7 @@ export function NotificationPanel({
     }
   };
 
-  const getNotificationMessage = (notification) => {
+  /*   const getNotificationMessage = (notification) => {
     const senderName = notification.sender?.nickname || "匿名用戶";
     switch (notification.type) {
       case "FRIEND_REQUEST":
@@ -124,6 +124,31 @@ export function NotificationPanel({
         return `${senderName} 關注了你`;
       case "PRIVATE_MESSAGE":
         return `${senderName} 發送了一條私人訊息`;
+      default:
+        return "發送了一條通知";
+    }
+  }; */
+  const getNotificationMessage = (notification) => {
+    const senderName = notification.sender?.nickname || "匿名用戶";
+    switch (notification.type) {
+      case "FRIEND_REQUEST":
+        return "你有一個新好友請求";
+      case "friend_accept":
+        return "你的好友請求已被接受";
+      case "friend_reject":
+        return "你的好友請求已被拒絕";
+      case "friend_remove":
+        return "已解除與你的好友關係";
+      case "POST":
+        return "發布了一篇新貼文";
+      case "LIKE":
+        return "點讚了你的貼文";
+      case "comment":
+        return "評論了你的貼文";
+      case "FOLLOW":
+        return "關注了你";
+      case "PRIVATE_MESSAGE":
+        return "發送了一條私人訊息";
       default:
         return "發送了一條通知";
     }
