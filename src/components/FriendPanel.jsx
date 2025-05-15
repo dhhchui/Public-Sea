@@ -10,6 +10,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [newFriendQuery, setNewFriendQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -87,14 +88,15 @@ export function FriendPanel({ user, isOpen, onClose }) {
     }
   };
 
-  const handleSendFriendRequest = async () => {
+  const handleSearchUsers = async () => {
     if (!newFriendQuery) {
       setError("請輸入用戶名或暱稱");
+      setSearchResults([]);
       return;
     }
 
     try {
-      const searchRes = await fetch("/api/search", {
+      const searchRes = await fetch("/api/search-users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,30 +104,75 @@ export function FriendPanel({ user, isOpen, onClose }) {
         },
         body: JSON.stringify({ query: newFriendQuery }),
       });
+
+      const contentType = searchRes.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const responseText = await searchRes.text();
+        console.error("後端響應不是 JSON 格式:", responseText);
+        setError("伺服器響應格式錯誤，請稍後再試");
+        setSearchResults([]);
+        return;
+      }
+
       const searchData = await searchRes.json();
-      if (searchRes.ok && searchData.users.length > 0) {
-        const targetUser = searchData.users[0];
-        const sendRes = await fetch("/api/friend-request/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-          body: JSON.stringify({ receiverId: targetUser.id }),
-        });
-        const sendData = await sendRes.json();
-        if (sendRes.ok) {
-          alert("好友請求已發送！");
-          setNewFriendQuery("");
-        } else {
-          setError(sendData.message || "發送好友請求失敗");
-        }
+      if (searchRes.ok) {
+        setSearchResults(searchData.users);
+        setError("");
       } else {
-        setError("找不到該用戶");
+        setError(searchData.message || "搜尋用戶失敗");
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching users:", error);
+      setError("搜尋用戶時發生錯誤");
+      setSearchResults([]);
+    }
+  };
+
+  const handleSendFriendRequest = async (receiverId) => {
+    try {
+      const sendRes = await fetch("/api/friend-request/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify({ receiverId }),
+      });
+      const sendData = await sendRes.json();
+      if (sendRes.ok) {
+        alert("好友請求已發送！");
+        setSearchResults((prev) => prev.filter((u) => u.id !== receiverId));
+        setNewFriendQuery("");
+      } else {
+        setError(sendData.message || "發送好友請求失敗");
       }
     } catch (error) {
       console.error("Error sending friend request:", error);
       setError("發送好友請求時發生錯誤");
+    }
+  };
+
+  const handleUnfriend = async (friendId) => {
+    try {
+      const res = await fetch("/api/friends/unfriend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify({ friendId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriends((prev) => prev.filter((friend) => friend.id !== friendId));
+        alert(data.message);
+      } else {
+        setError(data.message || "解除好友關係失敗");
+      }
+    } catch (error) {
+      console.error("Error unfriending:", error);
+      setError("解除好友關係時發生錯誤");
     }
   };
 
@@ -156,6 +203,13 @@ export function FriendPanel({ user, isOpen, onClose }) {
                     >
                       {friend.nickname || friend.username}
                     </span>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleUnfriend(friend.id)}
+                    >
+                      解除好友
+                    </Button>
                   </div>
                 ))
               ) : (
@@ -172,18 +226,24 @@ export function FriendPanel({ user, isOpen, onClose }) {
                     key={request.id}
                     className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md"
                   >
-                    <span>{request.sender.nickname || request.sender.username}</span>
+                    <span>
+                      {request.sender.nickname || request.sender.username}
+                    </span>
                     <div className="flex gap-1">
                       <Button
                         size="sm"
-                        onClick={() => handleRespondRequest(request.id, "accept")}
+                        onClick={() =>
+                          handleRespondRequest(request.id, "accept")
+                        }
                       >
                         接受
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleRespondRequest(request.id, "reject")}
+                        onClick={() =>
+                          handleRespondRequest(request.id, "reject")
+                        }
                       >
                         拒絕
                       </Button>
@@ -195,7 +255,7 @@ export function FriendPanel({ user, isOpen, onClose }) {
               )}
             </div>
             <div>
-              <h3 className="font-semibold">發送好友請求</h3>
+              <h3 className="font-semibold">搜尋並添加好友</h3>
               <div className="flex gap-2">
                 <Input
                   type="text"
@@ -203,8 +263,32 @@ export function FriendPanel({ user, isOpen, onClose }) {
                   value={newFriendQuery}
                   onChange={(e) => setNewFriendQuery(e.target.value)}
                 />
-                <Button onClick={handleSendFriendRequest}>發送</Button>
+                <Button onClick={handleSearchUsers}>搜尋</Button>
               </div>
+              {searchResults.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="font-medium">搜尋結果</h4>
+                  {searchResults.map((result) => (
+                    <div
+                      key={result.id}
+                      className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md"
+                    >
+                      <div>
+                        <span className="font-medium">{result.nickname}</span>
+                        <span className="ml-2 text-sm text-gray-500">
+                          ({result.email})
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendFriendRequest(result.id)}
+                      >
+                        發送好友請求
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {error && <p className="text-red-500">{error}</p>}
             <Button onClick={onClose} className="w-full mt-4">

@@ -85,10 +85,11 @@ export async function POST(request) {
       where: { id: decoded.userId },
     });
 
-    // 確保 followedIds 是一個數組
-    const currentUserFollowedIds = Array.isArray(currentUser.followedIds)
+    // 確保 followedIds 是一個數組，並移除重複 ID
+    let currentUserFollowedIds = Array.isArray(currentUser.followedIds)
       ? currentUser.followedIds
       : [];
+    currentUserFollowedIds = [...new Set(currentUserFollowedIds)]; // 移除重複 ID
     if (!currentUserFollowedIds.includes(targetUserIdInt)) {
       console.log("Not following this user");
       return new Response(
@@ -97,14 +98,39 @@ export async function POST(request) {
       );
     }
 
-    // 確保 followerIds 是一個數組
-    const targetUserFollowerIds = Array.isArray(targetUser.followerIds)
+    // 確保 followerIds 是一個數組，並移除重複 ID
+    let targetUserFollowerIds = Array.isArray(targetUser.followerIds)
       ? targetUser.followerIds
       : [];
+    targetUserFollowerIds = [...new Set(targetUserFollowerIds)]; // 移除重複 ID
 
-    // 確保計數欄位已初始化
-    const currentUserFollowedCount = currentUser.followedCount || 0;
-    const targetUserFollowerCount = targetUser.followerCount || 0;
+    // 計算移除後的 ID 數量，並更新計數
+    const newFollowedIds = currentUserFollowedIds.filter(
+      (id) => id !== targetUserIdInt
+    );
+    const newFollowerIds = targetUserFollowerIds.filter(
+      (id) => id !== decoded.userId
+    );
+
+    const newFollowedCount = newFollowedIds.length;
+    const newFollowerCount = newFollowerIds.length;
+
+    console.log(
+      "Before unfollow - Current User Followed IDs:",
+      currentUserFollowedIds
+    );
+    console.log(
+      "Before unfollow - Target User Follower IDs:",
+      targetUserFollowerIds
+    );
+    console.log(
+      "Before unfollow - Current User Followed Count:",
+      currentUser.followedCount
+    );
+    console.log(
+      "Before unfollow - Target User Follower Count:",
+      targetUser.followerCount
+    );
 
     // 使用 Prisma 事務更新數據
     await prisma.$transaction([
@@ -113,10 +139,10 @@ export async function POST(request) {
         where: { id: decoded.userId },
         data: {
           followedIds: {
-            set: currentUserFollowedIds.filter((id) => id !== targetUserIdInt),
+            set: newFollowedIds,
           },
           followedCount: {
-            set: currentUserFollowedCount - 1,
+            set: newFollowedCount,
           },
         },
       }),
@@ -125,14 +151,25 @@ export async function POST(request) {
         where: { id: targetUserIdInt },
         data: {
           followerIds: {
-            set: targetUserFollowerIds.filter((id) => id !== decoded.userId),
+            set: newFollowerIds,
           },
           followerCount: {
-            set: targetUserFollowerCount - 1,
+            set: newFollowerCount,
           },
         },
       }),
     ]);
+
+    console.log("After unfollow - Current User Followed IDs:", newFollowedIds);
+    console.log("After unfollow - Target User Follower IDs:", newFollowerIds);
+    console.log(
+      "After unfollow - Current User Followed Count:",
+      newFollowedCount
+    );
+    console.log(
+      "After unfollow - Target User Follower Count:",
+      newFollowerCount
+    );
 
     console.log("User unfollowed successfully");
     return new Response(

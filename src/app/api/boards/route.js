@@ -1,4 +1,3 @@
-// api/boards/route.js
 import prisma from "@/lib/prisma";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
@@ -37,13 +36,13 @@ export async function GET(request) {
       cachedBoards = null; // 確保進入資料庫查詢
     }
 
-    if (cachedBoards) {
+    if (cachedBoards && cachedBoards.length > 0) {
       console.log("Returning cached boards");
       return NextResponse.json({ boards: cachedBoards }, { status: 200 });
     }
 
-    // 如果快取不存在，從資料庫查詢
-    console.log("Cache miss, fetching boards from database");
+    // 如果快取不存在或為空，從資料庫查詢
+    console.log("Cache miss or empty cache, fetching boards from database");
     const boards = await prisma.board.findMany({
       select: {
         id: true,

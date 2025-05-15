@@ -1,7 +1,8 @@
-import prisma from "../../../lib/prisma";
+import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { getPostListCacheKey } from "@/lib/cache";
 
 // 初始化 Upstash Redis 客戶端
 const redis = new Redis({
@@ -11,8 +12,8 @@ const redis = new Redis({
 
 // 記錄快取鍵到鍵列表
 const addPostListCacheKey = async (boardId, userId) => {
-  const key = `posts:board:${boardId}:user:${userId || "anonymous"}`;
-  const keyList = `posts:board:${boardId}:keys`;
+  const key = getPostListCacheKey(boardId, userId);
+  const keyList = `posts:board:${boardId || "all"}:keys`;
   await redis.sadd(keyList, key);
   console.log(`Added cache key ${key} to key list ${keyList}`);
 };
@@ -22,6 +23,7 @@ export async function GET(request) {
 
   try {
     let userId = null;
+    let isAuthenticated = false;
     const authHeader = request.headers.get("Authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
@@ -35,6 +37,7 @@ export async function GET(request) {
       }
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.userId;
+      isAuthenticated = true;
       console.log("Decoded userId:", userId);
     }
 
@@ -58,7 +61,7 @@ export async function GET(request) {
 
     let blockedUsers = [];
     let usersWhoBlockedMe = [];
-    if (userId) {
+    if (isAuthenticated && userId) {
       try {
         const blockRecords = await prisma.block.findMany({
           where: { blockerId: userId },
@@ -93,24 +96,24 @@ export async function GET(request) {
       }
     }
 
-    const blockedUserIds = [...blockedUsers, ...usersWhoBlockedMe];
+    const blockedUserIds = [
+      ...new Set([...blockedUsers, ...usersWhoBlockedMe]),
+    ];
     if (blockedUserIds.length > 0) {
       where.authorId = { notIn: blockedUserIds };
     }
     console.log("Updated where clause with blocked users:", where);
 
-    const cacheKey = `posts:board:${boardId || "all"}:user:${
-      userId || "anonymous"
-    }`;
+    const cacheKey = getPostListCacheKey(boardId, userId);
     console.log("Checking cache for key:", cacheKey);
 
     const cachedPosts = await redis.get(cacheKey);
-    if (cachedPosts) {
+    if (cachedPosts && cachedPosts.length > 0) {
       console.log("Returning cached posts:", cachedPosts);
       return NextResponse.json({ posts: cachedPosts }, { status: 200 });
     }
 
-    console.log("Cache miss, fetching posts from database");
+    console.log("Cache miss or empty cache, fetching posts from database");
     const posts = await prisma.post.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -127,7 +130,7 @@ export async function GET(request) {
 
     const serializedPosts = posts.map((post) => ({
       ...post,
-      view: post.view.toString(),
+      view: post.view.toString(), // 將 BigInt 轉為字符串
     }));
 
     await redis.set(cacheKey, serializedPosts, { ex: 300 });

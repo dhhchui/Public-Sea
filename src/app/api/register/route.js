@@ -181,7 +181,6 @@ export async function POST(request) {
         password: hashedPassword,
         nickname,
         gender: gender || "undisclosed",
-        hobbies: [],
         followerCount: 0,
         followedCount: 0,
         followerIds: [],

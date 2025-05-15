@@ -1,12 +1,34 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Flag, ChevronDown, ChevronUp } from "lucide-react";
-import LikeButton from "./LikeButton";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import LikeButton from './LikeButton';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ChevronDown, ChevronUp, Flag } from 'lucide-react';
 
 export default function CommentList({
-  postId,
   comments: initialComments,
   likeStatuses,
 }) {
@@ -20,6 +42,14 @@ export default function CommentList({
     }, {})
   );
   const router = useRouter();
+  const sortComments = (order) => {
+    const sortedComments = [...comments].sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return order === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    setComments(sortedComments);
+  };
 
   const toggleCollapse = (commentId) => {
     setCollapsedStates((prev) => ({
@@ -29,10 +59,24 @@ export default function CommentList({
   };
 
   return (
-    <div className="mt-4 w-full">
-      <h3 className="text-lg font-bold mb-2">留言</h3>
+    <div className='flex flex-col gap-4'>
+      <div className='flex items-center justify-between'>
+        <p className='text-lg font-bold'>留言</p>
+        <Select
+          onValueChange={(value) => sortComments(value)}
+          defaultValue='desc'
+        >
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='desc'>由新至舊</SelectItem>
+            <SelectItem value='asc'>由舊至新</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       {comments.length === 0 ? (
-        <p className="text-gray-500">尚未有留言。</p>
+        <p>尚未有留言。</p>
       ) : (
         comments.map((comment) => {
           // 根據摺疊狀態和紅旗用戶狀態來決定是否顯示留言內容
@@ -42,50 +86,56 @@ export default function CommentList({
           return (
             <div
               key={comment.id}
-              className={`p-4 border-b ${isRedFlagged && isCollapsed ? "opacity-50" : ""}`}
+              className={`p-4 border-b ${
+                isRedFlagged && isCollapsed ? 'opacity-50' : ''
+              }`}
             >
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
+              <div className='flex justify-between items-center'>
+                <div className='flex items-center gap-2'>
                   <span
-                    onClick={() => router.push(`/user-profile/${comment.authorId}`)}
+                    onClick={() =>
+                      router.push(`/user-profile/${comment.authorId}`)
+                    }
                     className={`cursor-pointer text-blue-500 hover:underline flex items-center ${
-                      isRedFlagged ? "text-red-500" : ""
+                      isRedFlagged ? 'text-red-500' : ''
                     }`}
                   >
-                    {comment.author?.nickname || "匿名用戶"}
+                    {comment.author?.nickname || '匿名用戶'}
                     {isRedFlagged && (
-                      <Flag className="ml-1 h-4 w-4 text-red-500" />
+                      <Flag className='ml-1 h-4 w-4 text-red-500' />
                     )}
                   </span>
                   {isRedFlagged && (
                     <button
                       onClick={() => toggleCollapse(comment.id)}
-                      className="text-gray-500 hover:text-gray-700"
+                      className='text-gray-500 hover:text-gray-700'
                     >
                       {isCollapsed ? (
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className='h-4 w-4' />
                       ) : (
-                        <ChevronUp className="h-4 w-4" />
+                        <ChevronUp className='h-4 w-4' />
                       )}
                     </button>
                   )}
                 </div>
                 {isRedFlagged && isCollapsed && (
-                  <span className="text-red-500 text-sm">被限制用戶</span>
+                  <span className='text-red-500 text-sm'>被限制用戶</span>
                 )}
               </div>
               {!isCollapsed && (
                 <>
-                  <p className="mt-2">{comment.content}</p>
-                  <p className="text-gray-500 text-sm mt-1">
+                  <p className='mt-2'>{comment.content}</p>
+                  <p className='text-gray-500 text-sm mt-1'>
                     {new Date(comment.createdAt).toLocaleString()}
                   </p>
-                  <div className="flex items-center mt-1">
+                  <div className='flex items-center mt-1'>
                     <LikeButton
                       itemId={comment.id}
-                      itemType="comment"
+                      itemType='comment'
                       initialLikeCount={comment.likeCount || 0}
-                      initialLiked={likeStatuses[`comment-${comment.id}`] || false}
+                      initialLiked={
+                        likeStatuses[`comment-${comment.id}`] || false
+                      }
                     />
                   </div>
                 </>
@@ -93,6 +143,33 @@ export default function CommentList({
             </div>
           );
         })
+        // comments.map((comment) => (
+        //   <Card key={comment.id}>
+        //     <CardHeader>
+        //       <Badge
+        //         variant='outline'
+        //         className='cursor-pointer'
+        //         onClick={() => router.push(`/user-profile/${comment.authorId}`)}
+        //       >
+        //         {comment.author.username}
+        //       </Badge>
+        //       <CardDescription>
+        //         {new Date(comment.createdAt).toLocaleString()}
+        //       </CardDescription>
+        //     </CardHeader>
+        //     <CardContent>
+        //       <p className='whitespace-pre-line'>{comment.content}</p>
+        //     </CardContent>
+        //     <CardFooter>
+        //       <LikeButton
+        //         itemId={comment.id}
+        //         itemType='comment'
+        //         initialLikeCount={comment.likeCount}
+        //         initialLiked={likeStatuses[`comment-${comment.id}`] || false}
+        //       />
+        //     </CardFooter>
+        //   </Card>
+        // ))
       )}
     </div>
   );

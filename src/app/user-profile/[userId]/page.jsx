@@ -1,29 +1,12 @@
-// app/user-profile/[userId]/page.jsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import ProfileEditForm from "@/components/ProfileEditForm"; // 導入 ProfileEditForm
 import UserList from "@/components/UserList";
 import RatingModal from "@/components/RatingModal";
-
-// 如果需要修改預設興趣，可以在這裡修改
-const PREDEFINED_HOBBIES = [
-  "閱讀",
-  "跑步",
-  "烹飪",
-  "音樂",
-  "旅行",
-  "攝影",
-  "遊戲",
-  "健身",
-  "畫畫",
-  "電影",
-];
 
 export default function UserProfile() {
   const router = useRouter();
@@ -34,7 +17,7 @@ export default function UserProfile() {
   const [formData, setFormData] = useState({
     nickname: "",
     bio: "",
-    hobbies: [], // 改為數組，儲存勾選嘅興趣
+    hobbies: [],
     password: "",
     confirmPassword: "",
   });
@@ -69,7 +52,7 @@ export default function UserProfile() {
           setFormData({
             nickname: data.user.nickname || "",
             bio: data.user.bio || "",
-            hobbies: data.user.hobbies || [], // 從 API 獲取嘅 hobbies 直接設為數組
+            hobbies: data.user.hobbies || [],
             password: "",
             confirmPassword: "",
           });
@@ -95,21 +78,7 @@ export default function UserProfile() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name === "hobbies") {
-      return; // hobbies 由 checkbox 處理，不在此更新
-    }
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // 處理 checkbox 勾選
-  const handleHobbyChange = (e) => {
-    const { value, checked } = e.target;
-    setFormData((prev) => {
-      const newHobbies = checked
-        ? [...prev.hobbies, value]
-        : prev.hobbies.filter((hobby) => hobby !== value);
-      return { ...prev, hobbies: newHobbies };
-    });
   };
 
   const handleEditSubmit = async (e) => {
@@ -130,18 +99,35 @@ export default function UserProfile() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...formData,
-          hobbies: formData.hobbies, // 直接使用數組
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await res.json();
       if (res.ok) {
         setSuccessMessage("個人資料更新成功！");
-        setUser((prev) => ({ ...prev, ...data.user }));
+        setUser((prev) => ({
+          ...prev,
+          ...data.user,
+          hobbies: data.user.hobbies || [],
+        }));
+        setFormData({
+          nickname: data.user.nickname || "",
+          bio: data.user.bio || "",
+          hobbies: data.user.hobbies || [],
+          password: "",
+          confirmPassword: "",
+        });
         setIsEditing(false);
         setTimeout(() => setSuccessMessage(""), 3000);
+
+        if (data.logoutRequired) {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          window.dispatchEvent(new Event("userLoggedOut"));
+          setTimeout(() => {
+            router.push("/login");
+          }, 1000);
+        }
       } else {
         if (res.status === 401) {
           localStorage.removeItem("user");
@@ -346,120 +332,14 @@ export default function UserProfile() {
               </p>
             )}
             {isEditing ? (
-              <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div>
-                  <Label
-                    htmlFor="nickname"
-                    className="text-lg font-medium text-gray-700"
-                  >
-                    暱稱
-                  </Label>
-                  <Input
-                    id="nickname"
-                    name="nickname"
-                    value={formData.nickname}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 p-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="bio"
-                    className="text-lg font-medium text-gray-700"
-                  >
-                    簡介
-                  </Label>
-                  <Textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="mt-1 p-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="hobbies"
-                    className="text-lg font-medium text-gray-700"
-                  >
-                    興趣（請選擇）
-                  </Label>
-                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {PREDEFINED_HOBBIES.map((hobby) => (
-                      <div key={hobby} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`hobby-${hobby}`}
-                          value={hobby}
-                          checked={formData.hobbies.includes(hobby)}
-                          onChange={handleHobbyChange}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <Label
-                          htmlFor={`hobby-${hobby}`}
-                          className="ml-2 text-gray-700"
-                        >
-                          {hobby}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Label
-                    htmlFor="password"
-                    className="text-lg font-medium text-gray-700"
-                  >
-                    新密碼（可選）
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="mt-1 p-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="confirmPassword"
-                    className="text-lg font-medium text-gray-700"
-                  >
-                    確認新密碼
-                  </Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className="mt-1 p-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                {error && <p className="text-red-500">{error}</p>}
-                {successMessage && (
-                  <p className="text-green-500">{successMessage}</p>
-                )}
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md"
-                  >
-                    保存
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditing(false)}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-100 py-2 px-4 rounded-md"
-                  >
-                    取消
-                  </Button>
-                </div>
-              </form>
+              <ProfileEditForm
+                formData={formData}
+                handleInputChange={handleInputChange}
+                handleEditSubmit={handleEditSubmit}
+                error={error}
+                successMessage={successMessage}
+                setIsEditing={setIsEditing}
+              />
             ) : (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

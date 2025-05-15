@@ -1,5 +1,26 @@
 import { notFound } from "next/navigation";
 import BoardContent from "@/components/BoardContent";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Textarea } from "@/components/ui/textarea";
+import { FilePlus } from "lucide-react";
 
 const categoryMap = {
   吹水台: "其他",
@@ -13,22 +34,21 @@ const categoryMap = {
   上班台: "生活",
   旅遊台: "生活",
   校園台: "生活",
+  感情台: "生活",
   體育台: "興趣",
   遊戲台: "興趣",
   影視台: "興趣",
   音樂台: "興趣",
-  感情台: "生活",
 };
 
 export async function generateStaticParams() {
   try {
-    // 使用 Next.js fetch 快取，設置 revalidate 為 24 小時（86400秒）
     const res = await fetch("http://localhost:3000/api/boards", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      next: { revalidate: 86400 }, // 快取 24 小時
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {
@@ -40,7 +60,7 @@ export async function generateStaticParams() {
     const boards = data.boards || [];
 
     return boards.map((board) => ({
-      board: encodeURIComponent(board.name), // 編碼中文名稱
+      board: encodeURIComponent(board.name),
     }));
   } catch (error) {
     console.error("Error in generateStaticParams:", error);
@@ -49,18 +69,16 @@ export async function generateStaticParams() {
 }
 
 export default async function BoardPage({ params, searchParams }) {
-  // 使用 await 解構 params
   const { board } = await params;
-  const decodedBoard = decodeURIComponent(board); // 解碼 URL 中的中文名稱
+  const decodedBoard = decodeURIComponent(board);
 
   try {
-    // 使用 Next.js fetch 快取，設置 revalidate 為 24 小時（86400秒）
     const res = await fetch("http://localhost:3000/api/boards", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      next: { revalidate: 86400 }, // 快取 24 小時
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {
@@ -70,6 +88,9 @@ export default async function BoardPage({ params, searchParams }) {
 
     const data = await res.json();
     const boards = data.boards || [];
+
+    console.log("Decoded board:", decodedBoard);
+    console.log("Boards fetched:", boards);
 
     const boardData = boards.find((item) => item.name === decodedBoard);
 
@@ -81,20 +102,63 @@ export default async function BoardPage({ params, searchParams }) {
     const categoryTitle = categoryMap[boardData.name] || "其他";
 
     return (
-      <div className="flex flex-row gap-2 h-full">
-        <div className="w-1/2 flex flex-col gap-2">
-          <div>
-            <h1 className="text-3xl font-bold">{boardData.name}</h1>
-            <p className="text-gray-600 mt-1">
-              歡迎來到 {categoryTitle} - {boardData.name}！
-            </p>
+      <>
+        <div className="sticky top-0 bg-background">
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex w-full items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-[orientation=vertical]:h-4"
+              />
+              <Breadcrumb className="w-full">
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{boardData.name}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <FilePlus />
+                    新增留言
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="flex flex-col sm:max-w-[425px] max-h-[96vh]">
+                  <DialogHeader>
+                    <DialogTitle>新增留言</DialogTitle>
+                  </DialogHeader>
+                  <form className="flex flex-col gap-4">
+                    <div className="flex-1 overflow-auto">
+                      <Textarea
+                        placeholder="撰寫您的留言..."
+                        className="resize-none"
+                        required
+                      />
+                    </div>
+                    <Button className="self-start" type="submit">
+                      提交留言
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </header>
+          <Separator />
+        </div>
+        <main className="flex flex-col gap-4 p-4">
+          <div className="w-1/2 flex flex-col gap-2">
+            <div>
+              <h1 className="text-3xl font-bold">{boardData.name}</h1>
+              <p className="text-gray-600 mt-1">
+                歡迎來到 {categoryTitle} - {boardData.name}！
+              </p>
+            </div>
+            <BoardContent board={decodedBoard} boardData={boardData} />
           </div>
-          <BoardContent board={decodedBoard} boardData={boardData} />
-        </div>
-        <div className="w-1/2 flex items-center justify-center text-gray-500">
-          請選擇一個話題查看詳情
-        </div>
-      </div>
+        </main>
+      </>
     );
   } catch (error) {
     console.error("Error in BoardPage:", error);

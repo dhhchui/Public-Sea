@@ -1,8 +1,18 @@
 import prisma from "../../../../lib/prisma";
 import jwt from "jsonwebtoken";
+import Pusher from "pusher";
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
+});
 
 export async function POST(request) {
   console.log("Received POST request to /api/friend-request/respond");
+  const startTime = performance.now();
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -52,8 +62,8 @@ export async function POST(request) {
     const friendRequest = await prisma.friendRequest.findUnique({
       where: { id: requestIdInt },
       include: {
-        sender: true,
-        receiver: true,
+        sender: { select: { id: true, nickname: true } },
+        receiver: { select: { id: true, nickname: true } },
       },
     });
 
@@ -92,6 +102,29 @@ export async function POST(request) {
         data: { status: "rejected" },
       });
 
+      // 為發送者生成拒絕通知
+      await prisma.notification.create({
+        data: {
+          userId: friendRequest.senderId,
+          type: "friend_reject",
+          content: `${friendRequest.receiver.nickname} 拒絕了你的好友請求`,
+          senderId: friendRequest.receiverId,
+          isRead: false,
+          createdAt: new Date(),
+        },
+      });
+      console.log(
+        `Generated friend_reject notification for user ${friendRequest.senderId}`
+      );
+
+      await pusher.trigger(`user-${friendRequest.senderId}`, "notification", {
+        type: "friend_reject",
+        senderId: friendRequest.receiverId,
+        message: `${friendRequest.receiver.nickname} 拒絕了你的好友請求`,
+      });
+
+      const endTime = performance.now();
+      console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
       return new Response(
         JSON.stringify({ message: "Friend request rejected successfully" }),
         { status: 200 }
@@ -165,24 +198,27 @@ export async function POST(request) {
       },
     });
 
-    // 為發送者生成通知
+    // 為發送者生成接受通知
     await prisma.notification.create({
       data: {
         userId: senderId,
         type: "friend_accept",
-        relatedId: receiverId,
+        content: `${friendRequest.receiver.nickname} 接受了你的好友請求`,
         senderId: receiverId,
         isRead: false,
+        createdAt: new Date(),
       },
     });
+    console.log(`Generated friend_accept notification for user ${senderId}`);
 
     await pusher.trigger(`user-${senderId}`, "notification", {
       type: "friend_accept",
-      relatedId: receiverId,
       senderId: receiverId,
       message: `${friendRequest.receiver.nickname} 接受了你的好友請求`,
     });
 
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
     return new Response(
       JSON.stringify({ message: "Friend request accepted successfully" }),
       { status: 200 }

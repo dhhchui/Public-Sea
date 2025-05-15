@@ -21,8 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PopularPosts from "@/components/PopularPosts";
 import RecommendedUsers from "@/components/RecommendedUsers";
-import { fetchBoardsData } from "@/lib/cache";
-import { getPostListCacheKey } from "@/components/post-list";
+import { fetchBoardsData, getPostListCacheKey } from "@/lib/cache"; // 修正導入
 import { useSWRConfig } from "swr";
 
 export default function Page() {
@@ -93,7 +92,7 @@ export default function Page() {
         setMessage({ text: "貼文創建成功", type: "success" });
         setTitle("");
         setContent("");
-        const cacheKey = getPostListCacheKey(boardId);
+        const cacheKey = getPostListCacheKey(boardId); // 使用正確的函數
         if (cacheKey) {
           console.log(`Triggering revalidation for cache key: ${cacheKey}`);
           mutate(cacheKey, undefined, { revalidate: true });
