@@ -1,36 +1,50 @@
-import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { authMiddleware } from "@/lib/authMiddleware";
+import { getRedisClient } from "@/lib/redisClient";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+export const POST = authMiddleware({ required: true })(
+  async (request, { userId }) => {
+    console.log("Received POST request to /api/invalidate-cache");
+    const startTime = performance.now();
 
-export async function POST(request) {
-  console.log("Received POST request to /api/invalidate-cache");
-  const startTime = performance.now();
+    try {
+      // 可選：限制為管理員
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (!user || user.role !== "admin") {
+        return NextResponse.json(
+          { message: "Unauthorized: Admin access required" },
+          { status: 403 }
+        );
+      }
 
-  try {
-    const { key } = await request.json();
-    if (!key) {
-      console.log("Missing cache key");
+      const { key } = await request.json();
+      if (!key) {
+        console.log("Missing cache key");
+        return NextResponse.json(
+          { message: "Missing cache key" },
+          { status: 400 }
+        );
+      }
+
+      const redis = getRedisClient();
+      const result = await redis.del(key);
+      console.log(`Cache invalidated for key: ${key}, result: ${result}`);
+
+      const endTime = performance.now();
+      console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
       return NextResponse.json(
-        { message: "Missing cache key" },
-        { status: 400 }
+        { message: "Cache invalidated" },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error("Error in POST /api/invalidate-cache:", error);
+      return NextResponse.json(
+        { message: "Server error: " + error.message },
+        { status: 500 }
       );
     }
-
-    const result = await redis.del(key);
-    console.log(`Cache invalidated for key: ${key}, result: ${result}`);
-
-    const endTime = performance.now();
-    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
-    return NextResponse.json({ message: "Cache invalidated" }, { status: 200 });
-  } catch (error) {
-    console.error("Error in POST /api/invalidate-cache:", error);
-    return NextResponse.json(
-      { message: "Server error: " + error.message },
-      { status: 500 }
-    );
   }
-}
+);

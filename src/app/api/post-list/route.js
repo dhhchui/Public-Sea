@@ -1,19 +1,13 @@
 import prisma from "@/lib/prisma";
 import jwt from "jsonwebtoken";
-import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { getRedisClient } from "@/lib/redisClient";
 import { getPostListCacheKey } from "@/lib/cache";
 
-// 初始化 Upstash Redis 客戶端
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
-
-// 記錄快取鍵到鍵列表
 const addPostListCacheKey = async (boardId, userId) => {
   const key = getPostListCacheKey(boardId, userId);
   const keyList = `posts:board:${boardId || "all"}:keys`;
+  const redis = getRedisClient();
   await redis.sadd(keyList, key);
   console.log(`Added cache key ${key} to key list ${keyList}`);
 };
@@ -107,6 +101,7 @@ export async function GET(request) {
     const cacheKey = getPostListCacheKey(boardId, userId);
     console.log("Checking cache for key:", cacheKey);
 
+    const redis = getRedisClient();
     const cachedPosts = await redis.get(cacheKey);
     if (cachedPosts && cachedPosts.length > 0) {
       console.log("Returning cached posts:", cachedPosts);
@@ -126,14 +121,13 @@ export async function GET(request) {
         },
       },
     });
-    console.log("Posts retrieved from database:", posts);
 
     const serializedPosts = posts.map((post) => ({
       ...post,
-      view: post.view.toString(), // 將 BigInt 轉為字符串
+      view: post.view.toString(),
     }));
 
-    await redis.set(cacheKey, serializedPosts, { ex: 300 });
+    await redis.set(cacheKey, serializedPosts, { ex: 600 }); // TTL 10 分鐘
     console.log("Posts cached successfully");
 
     await addPostListCacheKey(boardId || "all", userId);

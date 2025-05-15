@@ -1,49 +1,54 @@
 import prisma from "../../../lib/prisma";
-import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@/lib/authMiddleware";
+import { getRedisClient } from "@/lib/redisClient";
 
-export async function GET(request) {
-  console.log("Received GET request to /api/friends");
+export const GET = authMiddleware({ required: true })(
+  async (request, { userId }) => {
+    console.log("Received GET request to /api/friends");
 
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided");
-      return new Response(JSON.stringify({ message: "No token provided" }), {
-        status: 401,
+    try {
+      const cacheKey = `friends:${userId}`;
+      const redis = getRedisClient();
+      let cachedFriends = await redis.get(cacheKey);
+
+      if (cachedFriends) {
+        console.log("Returning cached friends");
+        return NextResponse.json({ friends: cachedFriends }, { status: 200 });
+      }
+
+      console.log("Cache miss, fetching friends from database");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { friends: true },
       });
-    }
 
-    const token = authHeader.split(" ")[1];
-    console.log("Verifying JWT...");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId;
+      if (!user) {
+        console.log("User not found");
+        return NextResponse.json(
+          { message: "User not found" },
+          { status: 404 }
+        );
+      }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { friends: true },
-    });
-
-    if (!user) {
-      console.log("User not found");
-      return new Response(JSON.stringify({ message: "User not found" }), {
-        status: 404,
+      const friends = await prisma.user.findMany({
+        where: { id: { in: user.friends } },
+        select: {
+          id: true,
+          nickname: true,
+        },
       });
+
+      await redis.set(cacheKey, friends, { ex: 3600 }); // TTL 1 小時
+      console.log("Friends cached successfully");
+
+      return NextResponse.json({ friends }, { status: 200 });
+    } catch (error) {
+      console.error("Error in GET /api/friends:", error);
+      return NextResponse.json(
+        { message: "Server error: " + error.message },
+        { status: 500 }
+      );
     }
-
-    const friends = await prisma.user.findMany({
-      where: { id: { in: user.friends } },
-      select: {
-        id: true,
-        nickname: true,
-      },
-    });
-
-    return new Response(JSON.stringify({ friends }), { status: 200 });
-  } catch (error) {
-    console.error("Error in GET /api/friends:", error);
-    return new Response(
-      JSON.stringify({ message: "Server error: " + error.message }),
-      { status: 500 }
-    );
   }
-}
+);

@@ -1,13 +1,7 @@
 import prisma from "../../../../lib/prisma";
 import jwt from "jsonwebtoken";
-import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
-
-// 初始化 Upstash Redis 客戶端
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+import { getRedisClient } from "@/lib/redisClient";
 
 export async function GET(request, { params }) {
   console.log("Received GET request to /api/view-post/[postId]");
@@ -17,10 +11,8 @@ export async function GET(request, { params }) {
     console.log("DATABASE_URL:", process.env.DATABASE_URL);
     if (!process.env.DATABASE_URL) {
       console.error("DATABASE_URL is not defined in environment variables");
-      return new Response(
-        JSON.stringify({
-          message: "Server configuration error: Database URL is missing",
-        }),
+      return NextResponse.json(
+        { message: "Server configuration error: Database URL is missing" },
         { status: 500 }
       );
     }
@@ -39,16 +31,13 @@ export async function GET(request, { params }) {
 
     if (isNaN(postIdInt)) {
       console.log("Invalid postId:", postId);
-      return new Response(JSON.stringify({ message: "Invalid postId" }), {
-        status: 400,
-      });
+      return NextResponse.json({ message: "Invalid postId" }, { status: 400 });
     }
 
-    // 定義快取鍵，包含 postId 和 userId
     const cacheKey = `post:view:${postIdInt}:user:${userId || "anonymous"}`;
     console.log("Checking cache for key:", cacheKey);
 
-    // 嘗試從 Redis 獲取快取數據
+    const redis = getRedisClient(); // 使用全局 Redis 客戶端
     const cachedPost = await redis.get(cacheKey);
     if (cachedPost) {
       let updatedPost;
@@ -67,7 +56,7 @@ export async function GET(request, { params }) {
         view: updatedPost.view.toString(),
       };
 
-      await redis.set(cacheKey, updatedCachedPost, { ex: 300 });
+      await redis.set(cacheKey, updatedCachedPost, { ex: 600 }); // 延長 TTL 至 10 分鐘
 
       const endTime = performance.now();
       console.log(
@@ -96,10 +85,8 @@ export async function GET(request, { params }) {
         usersWhoBlockedMe = blockedByRecords.map((record) => record.blockerId);
       } catch (dbError) {
         console.error("Database error while fetching block records:", dbError);
-        return new Response(
-          JSON.stringify({
-            message: "Failed to fetch blocked users due to database error",
-          }),
+        return NextResponse.json(
+          { message: "Failed to fetch blocked users due to database error" },
           { status: 503 }
         );
       }
@@ -144,29 +131,23 @@ export async function GET(request, { params }) {
       );
     } catch (dbError) {
       console.error("Database error while fetching post:", dbError);
-      return new Response(
-        JSON.stringify({
-          message: "Failed to fetch post due to database error",
-        }),
+      return NextResponse.json(
+        { message: "Failed to fetch post due to database error" },
         { status: 503 }
       );
     }
 
     if (!post) {
       console.log("Post not found for postId:", postIdInt);
-      return new Response(JSON.stringify({ message: "Post not found" }), {
-        status: 404,
-      });
+      return NextResponse.json({ message: "Post not found" }, { status: 404 });
     }
 
     if (userId) {
       const blockedUserIds = [...blockedUsers, ...usersWhoBlockedMe];
       if (blockedUserIds.includes(post.authorId)) {
         console.log("Post author is blocked or has blocked you");
-        return new Response(
-          JSON.stringify({
-            message: "Post author is blocked or has blocked you",
-          }),
+        return NextResponse.json(
+          { message: "Post author is blocked or has blocked you" },
           { status: 403 }
         );
       }
@@ -202,10 +183,9 @@ export async function GET(request, { params }) {
     const serializedPost = {
       ...post,
       view: post.view.toString(),
-      // 移除 board: undefined，恢復 board 字段
     };
 
-    await redis.set(cacheKey, serializedPost, { ex: 300 });
+    await redis.set(cacheKey, serializedPost, { ex: 600 }); // 延長 TTL 至 10 分鐘
     console.log("Post cached successfully");
 
     const endTime = performance.now();
@@ -217,8 +197,8 @@ export async function GET(request, { params }) {
     return NextResponse.json({ post: serializedPost }, { status: 200 });
   } catch (error) {
     console.error("Error in GET /api/view-post/[postId]:", error);
-    return new Response(
-      JSON.stringify({ message: "Server error: " + error.message }),
+    return NextResponse.json(
+      { message: "Server error: " + error.message },
       { status: 500 }
     );
   }

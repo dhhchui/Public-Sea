@@ -20,7 +20,6 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PopularPosts from "@/components/PopularPosts";
-import RecommendedUsers from "@/components/RecommendedUsers";
 import { fetchBoardsData, getPostListCacheKey } from "@/lib/cache"; // 修正導入
 import { useSWRConfig } from "swr";
 
@@ -153,7 +152,6 @@ export default function Page() {
           </div>
 
           {PopularPosts && <PopularPosts />}
-          {RecommendedUsers && <RecommendedUsers />}
 
           <div id="post-section">
             <Card>
