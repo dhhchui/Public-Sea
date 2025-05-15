@@ -1,17 +1,18 @@
+// components/post-list.js
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
 // 自訂 fetcher 函數給 useSWR 使用
 const fetcher = async (url) => {
-  const token = localStorage.getItem("token"); // 可選：獲取 token，但不強制要求
+  const token = localStorage.getItem("token");
 
   const headers = {
     "Content-Type": "application/json",
   };
 
-  // 如果有 token，則添加 Authorization 頭部
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -32,6 +33,7 @@ const fetcher = async (url) => {
 
 export function PostList({ boardId }) {
   const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setIsMounted(true);
@@ -60,6 +62,11 @@ export function PostList({ boardId }) {
           <div
             key={post.id}
             className="p-4 bg-white border rounded shadow-md cursor-pointer hover:bg-gray-50"
+            onClick={() => {
+              const url = `/view-post/${post.id}`; // 確保跳轉到 /view-post/[postId]
+              console.log("Navigating to:", url);
+              router.push(url);
+            }}
           >
             <h3 className="text-xl font-bold">{post.title}</h3>
             <p className="text-gray-700">{post.content}</p>

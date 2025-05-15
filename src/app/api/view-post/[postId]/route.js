@@ -11,7 +11,7 @@ const redis = new Redis({
 
 export async function GET(request, { params }) {
   console.log("Received GET request to /api/view-post/[postId]");
-  const startTime = performance.now(); // 記錄請求開始時間
+  const startTime = performance.now();
 
   try {
     console.log("DATABASE_URL:", process.env.DATABASE_URL);
@@ -51,31 +51,22 @@ export async function GET(request, { params }) {
     // 嘗試從 Redis 獲取快取數據
     const cachedPost = await redis.get(cacheKey);
     if (cachedPost) {
-      // 從快取中獲取數據後，獨立更新瀏覽次數
-      let updatedPost; // 更新後
+      let updatedPost;
       try {
-        //await prisma.post.update({
-        //where: { id: postIdInt },
-        //data: {
-        //view: { increment: 1 },
-        //},
-        //});
         updatedPost = await prisma.post.update({
           where: { id: postIdInt },
           data: { view: { increment: 1 } },
-          select: { view: true }, // 只選取 view 字段
+          select: { view: true },
         });
       } catch (dbError) {
         console.error("Database error while updating view count:", dbError);
       }
 
-      // 更新緩存中的 view 數
       const updatedCachedPost = {
         ...cachedPost,
-        view: updatedPost.view.toString(), // 使用最新的 view 數
+        view: updatedPost.view.toString(),
       };
 
-      // 更新 Redis 緩存
       await redis.set(cacheKey, updatedCachedPost, { ex: 300 });
 
       const endTime = performance.now();
@@ -87,7 +78,6 @@ export async function GET(request, { params }) {
       return NextResponse.json({ post: updatedCachedPost }, { status: 200 });
     }
 
-    // 如果快取不存在，查詢資料庫
     console.log("Cache miss, fetching post from database");
     let blockedUsers = [];
     let usersWhoBlockedMe = [];
@@ -163,26 +153,10 @@ export async function GET(request, { params }) {
     }
 
     if (!post) {
-      console.log("Post not found");
+      console.log("Post not found for postId:", postIdInt);
       return new Response(JSON.stringify({ message: "Post not found" }), {
         status: 404,
       });
-    }
-
-    // 驗證 board 參數與 post.board.name 匹配
-    const boardParam = request.url.match(/\/boards\/([^\/]+)/)?.[1];
-    if (boardParam && decodeURIComponent(boardParam) !== post.board.name) {
-      console.log("Post does not belong to the requested board:", {
-        postIdInt,
-        boardParam,
-        postBoard: post.board.name,
-      });
-      return new Response(
-        JSON.stringify({
-          message: "Post does not belong to the requested board",
-        }),
-        { status: 404 }
-      );
     }
 
     if (userId) {
@@ -214,7 +188,6 @@ export async function GET(request, { params }) {
         .filter((comment) => comment !== null);
     }
 
-    // 更新瀏覽次數
     try {
       await prisma.post.update({
         where: { id: postIdInt },
@@ -232,7 +205,6 @@ export async function GET(request, { params }) {
       board: undefined,
     };
 
-    // 將數據儲存到快取，快取 5 分鐘（300秒）
     await redis.set(cacheKey, serializedPost, { ex: 300 });
     console.log("Post cached successfully");
 
