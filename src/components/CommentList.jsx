@@ -76,23 +76,24 @@ export default function CommentList({
         </Select>
       </div>
       {comments.length === 0 ? (
-        <p>尚未有留言。</p>
+        <p className='self-center'>未有留言</p>
       ) : (
-        comments.map((comment) => {
-          // 根據摺疊狀態和紅旗用戶狀態來決定是否顯示留言內容
-          // const isCollapsed = collapsedStates[comment.id];
-          const isRedFlagged = comment.author?.isRedFlagged;
+        <>
+          {comments.map((comment) => {
+            // 根據摺疊狀態和紅旗用戶狀態來決定是否顯示留言內容
+            // const isCollapsed = collapsedStates[comment.id];
+            const isRedFlagged = comment.author?.isRedFlagged;
 
-          return (
-            <div
-              key={comment.id}
-              // className={`p-4 border-b ${
-              //   isRedFlagged && isCollapsed ? 'opacity-50' : ''
-              // }`}
-            >
-              {/* <div className='flex justify-between items-center'>
+            return (
+              <div
+                key={comment.id}
+                // className={`p-4 border-b ${
+                //   isRedFlagged && isCollapsed ? 'opacity-50' : ''
+                // }`}
+              >
+                {/* <div className='flex justify-between items-center'>
                 <div className='flex items-center gap-2'> */}
-              {/* <span
+                {/* <span
                     onClick={() =>
                       router.push(`/user-profile/${comment.authorId}`)
                     }
@@ -105,9 +106,9 @@ export default function CommentList({
                       <Flag className='ml-1 h-4 w-4 text-red-500' />
                     )}
                   </span> */}
-              {isRedFlagged && (
-                <>
-                  {/* <button
+                {isRedFlagged && (
+                  <>
+                    {/* <button
                         onClick={() => toggleCollapse(comment.id)}
                         className='text-gray-500 hover:text-gray-700'
                       >
@@ -117,96 +118,98 @@ export default function CommentList({
                           <ChevronUp className='h-4 w-4' />
                         )}
                       </button> */}
-                  <Accordion className='px-6' type='single' collapsible>
-                    <AccordionItem value='item-1'>
-                      <AccordionTrigger className='hover:no-underline'>
-                        <div className='flex items-center gap-2'>
-                          <Badge
-                            className='cursor-pointer'
-                            variant='secondary'
-                            onClick={() =>
-                              router.push(`/user-profile/${comment.authorId}`)
-                            }
-                          >
-                            {comment.author?.nickname || '匿名用戶'}
-                          </Badge>
-                          <Badge variant='outline'>被限制用戶</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className='flex flex-col gap-6'>
-                          <p className='text-sm'>
-                            {new Date(comment.createdAt).toLocaleString()}
-                          </p>
-                          <p className='text-base whitespace-pre-line'>
-                            {comment.content}
-                          </p>
-                          <LikeButton
-                            itemId={comment.id}
-                            itemType='comment'
-                            initialLikeCount={comment.likeCount}
-                            initialLiked={
-                              likeStatuses[`comment-${comment.id}`] || false
-                            }
-                          />
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </>
-              )}
-              {/* </div>
+                    <Accordion className='px-6' type='single' collapsible>
+                      <AccordionItem value='item-1'>
+                        <AccordionTrigger className='hover:no-underline'>
+                          <div className='flex items-center gap-2'>
+                            <Badge
+                              className='cursor-pointer'
+                              variant='secondary'
+                              onClick={() =>
+                                router.push(`/user-profile/${comment.authorId}`)
+                              }
+                            >
+                              {comment.author?.nickname || '匿名用戶'}
+                            </Badge>
+                            <Badge variant='outline'>被限制用戶</Badge>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className='flex flex-col gap-6'>
+                            <p className='text-sm'>
+                              {new Date(comment.createdAt).toLocaleString()}
+                            </p>
+                            <p className='text-base whitespace-pre-line'>
+                              {comment.content}
+                            </p>
+                            <LikeButton
+                              itemId={comment.id}
+                              itemType='comment'
+                              initialLikeCount={comment.likeCount}
+                              initialLiked={
+                                likeStatuses[`comment-${comment.id}`] || false
+                              }
+                            />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </>
+                )}
+                {/* </div>
               </div> */}
-              {!isRedFlagged && (
-                // <>
-                //   <p className='mt-2'>{comment.content}</p>
-                //   <p className='text-gray-500 text-sm mt-1'>
-                //     {new Date(comment.createdAt).toLocaleString()}
-                //   </p>
-                //   <div className='flex items-center mt-1'>
-                //     <LikeButton
-                //       itemId={comment.id}
-                //       itemType='comment'
-                //       initialLikeCount={comment.likeCount || 0}
-                //       initialLiked={
-                //         likeStatuses[`comment-${comment.id}`] || false
-                //       }
-                //     />
-                //   </div>
-                <Card key={comment.id}>
-                  <CardHeader>
-                    <Badge
-                      variant='secondary'
-                      className='cursor-pointer'
-                      onClick={() =>
-                        router.push(`/user-profile/${comment.authorId}`)
-                      }
-                    >
-                      {comment.author?.nickname || '匿名用戶'}
-                    </Badge>
-                    <CardDescription>
-                      {new Date(comment.createdAt).toLocaleString()}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className='whitespace-pre-line'>{comment.content}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <LikeButton
-                      itemId={comment.id}
-                      itemType='comment'
-                      initialLikeCount={comment.likeCount}
-                      initialLiked={
-                        likeStatuses[`comment-${comment.id}`] || false
-                      }
-                    />
-                  </CardFooter>
-                </Card>
-                // </>
-              )}
-            </div>
-          );
-        })
+                {!isRedFlagged && (
+                  // <>
+                  //   <p className='mt-2'>{comment.content}</p>
+                  //   <p className='text-gray-500 text-sm mt-1'>
+                  //     {new Date(comment.createdAt).toLocaleString()}
+                  //   </p>
+                  //   <div className='flex items-center mt-1'>
+                  //     <LikeButton
+                  //       itemId={comment.id}
+                  //       itemType='comment'
+                  //       initialLikeCount={comment.likeCount || 0}
+                  //       initialLiked={
+                  //         likeStatuses[`comment-${comment.id}`] || false
+                  //       }
+                  //     />
+                  //   </div>
+                  <Card key={comment.id}>
+                    <CardHeader>
+                      <Badge
+                        variant='secondary'
+                        className='cursor-pointer'
+                        onClick={() =>
+                          router.push(`/user-profile/${comment.authorId}`)
+                        }
+                      >
+                        {comment.author?.nickname || '匿名用戶'}
+                      </Badge>
+                      <CardDescription>
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className='whitespace-pre-line'>{comment.content}</p>
+                    </CardContent>
+                    <CardFooter>
+                      <LikeButton
+                        itemId={comment.id}
+                        itemType='comment'
+                        initialLikeCount={comment.likeCount}
+                        initialLiked={
+                          likeStatuses[`comment-${comment.id}`] || false
+                        }
+                      />
+                    </CardFooter>
+                  </Card>
+                  // </>
+                )}
+              </div>
+            );
+          })}
+          <p className='self-center'>完</p>
+        </>
         // comments.map((comment) => (
         //   <Card key={comment.id}>
         //     <CardHeader>

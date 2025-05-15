@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-import { PostList } from "@/components/Post-list";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { PostList } from '@/components/post-list';
 
 export default function BoardContent({ board, boardData }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const postId = searchParams.get("postId");
-  const boardTitle = boardData ? boardData.title : board;
+  const postId = searchParams.get('postId');
+  const boardTitle = boardData ? boardData.name : board;
 
   useEffect(() => {
     if (postId) {
@@ -17,11 +17,13 @@ export default function BoardContent({ board, boardData }) {
   }, [postId, board, router]);
 
   return (
-    <div className="flex flex-col gap-2 h-full">
-      <div className="bg-white p-2 rounded shadow flex-1 overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-2">話題列表（{boardTitle}）</h2>
-        <PostList board={board} />
-      </div>
-    </div>
+    <>
+      {/* <div className='flex flex-col gap-2 h-full'> */}
+      {/* <div className='bg-white p-2 rounded shadow flex-1 overflow-y-auto'> */}
+      {/* <h2 className='text-xl font-semibold mb-2'>貼文列表（{boardTitle}）</h2> */}
+      <PostList board={board} />
+      {/* </div> */}
+      {/* </div> */}
+    </>
   );
 }

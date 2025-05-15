@@ -25,6 +25,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -216,11 +217,11 @@ export default function PostPage() {
         <div className='w-full max-w-2xl p-6'>
           <p className='text-red-500 text-center'>{error}</p>
           <Button
-            onClick={() => router.push('/boards')}
+            onClick={() => router.push(`/boards/${post.board?.name || ''}`)}
             className='w-full mt-4'
             variant='secondary'
           >
-            返回貼文列表
+            返回貼文
           </Button>
         </div>
       </div>
@@ -259,55 +260,50 @@ export default function PostPage() {
               </BreadcrumbList>
             </Breadcrumb>
             {/* 條件渲染：僅在 post 存在時顯示按鈕 */}
-            {post && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>
-                    <MessageSquarePlus />
-                    新增留言
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className='flex flex-col sm:max-w-[425px] max-h-[96vh]'>
-                  <DialogHeader>
-                    <DialogTitle>新增留言</DialogTitle>
-                  </DialogHeader>
-                  <form
-                    onSubmit={handleCommentSubmit}
-                    className='flex flex-col gap-4'
+            {/* {post && ( */}
+            <Dialog>
+              <DialogTrigger className='cursor-pointer' asChild>
+                <Button>
+                  <MessageSquarePlus />
+                  新增留言
+                </Button>
+              </DialogTrigger>
+              <DialogContent className='sm:max-w-[425px]'>
+                <DialogHeader>
+                  <DialogTitle>新增留言</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCommentSubmit} className='grid gap-4'>
+                  <Textarea
+                    value={commentContent}
+                    onChange={(e) => setCommentContent(e.target.value)}
+                    placeholder='撰寫您的留言...'
+                    className='w-full p-2 border rounded resize-none'
+                    required
+                    disabled={isSubmitting}
+                  />
+                  {error && <p className='text-red-500 mt-2'>{error}</p>}
+                  {successMessage && (
+                    <p className='text-green-500 mt-2'>{successMessage}</p>
+                  )}
+                  <Button
+                    className='cursor-pointer'
+                    type='submit'
+                    disabled={isSubmitting}
                   >
-                    <div className='flex-1 overflow-auto'>
-                      <Textarea
-                        value={commentContent}
-                        onChange={(e) => setCommentContent(e.target.value)}
-                        placeholder='撰寫您的留言...'
-                        className='resize-none'
-                        required
-                        disabled={isSubmitting}
-                      />
-                      {error && <p className='text-red-500 mt-2'>{error}</p>}
-                      {successMessage && (
-                        <p className='text-green-500 mt-2'>{successMessage}</p>
-                      )}
-                    </div>
-                    <Button
-                      className='self-start'
-                      type='submit'
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className='animate-spin' /> 提交中
-                        </>
-                      ) : (
-                        <>
-                          <SendHorizontal /> 提交留言
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className='animate-spin' /> 提交中
+                      </>
+                    ) : (
+                      <>
+                        <SendHorizontal /> 提交留言
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            {/* )} */}
           </div>
         </header>
         <Separator />
@@ -357,11 +353,11 @@ export default function PostPage() {
         >
           返回貼文列表
         </Button> */}
-        <p className='self-center'>完</p>
       </main>
     </>
   );
 }
+
 // 'use client';
 
 // import { useState, useEffect, useRef } from 'react';

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import BoardContent from '@/components/BoardContent';
+import CreatePost from '@/components/CreatePost';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,6 +11,8 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { FilePlus } from 'lucide-react';
 
 const categoryMap = {
   吹水台: '其他',
@@ -101,25 +104,27 @@ export default async function BoardPage({ params, searchParams }) {
               <Breadcrumb className='w-full'>
                 <BreadcrumbList>
                   <BreadcrumbItem>
+                    <BreadcrumbPage>討論</BreadcrumbPage>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
                     <BreadcrumbPage>{boardData.name}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-              {/* 移除「新增留言」按鈕 */}
+              <CreatePost>
+                <Button>
+                  <FilePlus />
+                  新增貼文
+                </Button>
+              </CreatePost>
             </div>
           </header>
           <Separator />
         </div>
         <main className='flex flex-col gap-4 p-4'>
-          <div className='w-1/2 flex flex-col gap-2'>
-            <div>
-              <h1 className='text-3xl font-bold'>{boardData.name}</h1>
-              <p className='text-gray-600 mt-1'>
-                歡迎來到 {categoryTitle} - {boardData.name}！
-              </p>
-            </div>
-            <BoardContent board={decodedBoard} boardData={boardData} />
-          </div>
+          <p className='text-xl font-bold'>{boardData.name}</p>
+          <BoardContent board={decodedBoard} boardData={boardData} />
         </main>
       </>
     );

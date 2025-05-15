@@ -14,8 +14,8 @@ import {
   Users,
 } from 'lucide-react';
 
-import { NavMain } from '@/components/Nav-main';
-import { NavUser } from '@/components/Nav-user';
+import { NavMain } from '@/components/nav-main';
+import { NavUser } from '@/components/nav-user';
 import {
   Sidebar,
   SidebarContent,
@@ -62,11 +62,11 @@ export function AppSidebar({ ...props }) {
       { title: '科技', names: ['手機台', '電腦台'] },
       {
         title: '生活',
-        names: ['飲食台', '上班台', '旅遊台', '校園台', '感情台' ],
+        names: ['飲食台', '上班台', '旅遊台', '校園台', '感情台'],
       },
       {
         title: '興趣',
-        names: ['學術台', '體育台', '遊戲台', '影視台', '音樂台', ],
+        names: ['學術台', '體育台', '遊戲台', '影視台', '音樂台'],
       },
       { title: '其他', names: ['吹水台', '管理台'] },
     ];

@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Backdrop } from "@/components/Backdrop";
-import { RegisterForm } from "@/components/Register-form";
-import { LoginForm } from "@/components/login-form";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from 'react';
+import { Backdrop } from '@/components/backdrop';
+import { RegisterForm } from '@/components/register-form';
+import { LoginForm } from '@/components/login-form';
+import { useRouter } from 'next/navigation';
 import {
   BadgeCheck,
   Bell,
@@ -14,7 +14,7 @@ import {
   LogOut,
   UserRoundPlus,
   UserCheck,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,17 +23,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { FollowPanel } from "@/components/FollowPanel";
-import { FriendPanel } from "@/components/FriendPanel";
-import { NotificationPanel } from "@/components/NotificationPanel";
+} from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FollowPanel } from '@/components/FollowPanel';
+import { FriendPanel } from '@/components/FriendPanel';
+import { NotificationPanel } from '@/components/NotificationPanel';
 
 export function NavUser() {
   const router = useRouter();
@@ -50,32 +50,32 @@ export function NavUser() {
     const handleUserLoggedIn = (event) => {
       const userData = event.detail;
       if (userData) {
-        if (typeof userData.userId === "string") {
+        if (typeof userData.userId === 'string') {
           userData.userId = parseInt(userData.userId);
         }
         setUser(userData);
         setIsLoggedIn(true);
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('isLoggedIn', 'true');
       }
     };
 
-    window.addEventListener("userLoggedIn", handleUserLoggedIn);
+    window.addEventListener('userLoggedIn', handleUserLoggedIn);
 
-    const storedUser = localStorage.getItem("user");
-    const storedLoginStatus = localStorage.getItem("isLoggedIn");
-    if (storedLoginStatus === "true" && storedUser) {
+    const storedUser = localStorage.getItem('user');
+    const storedLoginStatus = localStorage.getItem('isLoggedIn');
+    if (storedLoginStatus === 'true' && storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      if (typeof parsedUser.userId === "string") {
+      if (typeof parsedUser.userId === 'string') {
         parsedUser.userId = parseInt(parsedUser.userId);
-        localStorage.setItem("user", JSON.stringify(parsedUser));
+        localStorage.setItem('user', JSON.stringify(parsedUser));
       }
       setIsLoggedIn(true);
       setUser(parsedUser);
     }
 
     return () => {
-      window.removeEventListener("userLoggedIn", handleUserLoggedIn);
+      window.removeEventListener('userLoggedIn', handleUserLoggedIn);
     };
   }, []);
 
@@ -88,34 +88,34 @@ export function NavUser() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem('user');
+    localStorage.removeItem('isLoggedIn');
     setUser(null);
     setIsLoggedIn(false);
-    router.push("/");
+    router.push('/');
   };
 
   const handleProfileClick = async () => {
     if (!user?.userId || isNaN(user.userId)) {
-      console.error("User ID is invalid or missing:", user);
+      console.error('User ID is invalid or missing:', user);
       return;
     }
     try {
       const res = await fetch(`/api/user-profile/${user.userId}`, {
-        method: "GET",
+        method: 'GET',
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
       });
       if (res.ok) {
         router.push(`/user-profile/${user.userId}`);
       } else {
         const data = await res.json();
-        console.error("API error response:", data);
+        console.error('API error response:', data);
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      console.error('Error fetching user profile:', error);
     }
   };
 
@@ -139,31 +139,31 @@ export function NavUser() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  size='lg'
+                  className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                 >
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">訪客</span>
-                    <span className="truncate text-xs">尚未登入</span>
+                  <div className='grid flex-1 text-left text-sm leading-tight'>
+                    <span className='truncate font-medium'>訪客</span>
+                    <span className='truncate text-xs'>尚未登入</span>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
+                  <ChevronsUpDown className='ml-auto size-4' />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
-                align="end"
+                className='w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg'
+                side={isMobile ? 'bottom' : 'right'}
+                align='end'
                 sideOffset={4}
               >
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={toggleRegisterOverlay}>
-                    <UserRoundPlus className="mr-2 h-4 w-4" />
+                    <UserRoundPlus className='mr-2 h-4 w-4' />
                     <span>註冊</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={toggleLoginOverlay}>
-                  <LogIn className="mr-2 h-4 w-4" />
+                  <LogIn className='mr-2 h-4 w-4' />
                   <span>登入</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -195,68 +195,68 @@ export function NavUser() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                size='lg'
+                className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
               >
-                <Avatar className="h-8 w-8 rounded-lg">
+                <Avatar className='h-8 w-8 rounded-lg'>
                   <AvatarImage src={user?.avatar} alt={user?.username} />
-                  <AvatarFallback className="rounded-lg">
-                    {user?.username?.charAt(0).toUpperCase() || "U"}
+                  <AvatarFallback className='rounded-lg'>
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">
+                <div className='grid flex-1 text-left text-sm leading-tight'>
+                  <span className='truncate font-medium'>
                     {user?.nickname || user?.username}
                   </span>
-                  <span className="truncate text-xs">{user?.email}</span>
+                  <span className='truncate text-xs'>{user?.email}</span>
                 </div>
-                <ChevronsUpDown className="ml-auto size-4" />
+                <ChevronsUpDown className='ml-auto size-4' />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-              side={isMobile ? "bottom" : "right"}
-              align="end"
+              className='w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg'
+              side={isMobile ? 'bottom' : 'right'}
+              align='end'
               sideOffset={4}
             >
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
+              <DropdownMenuLabel className='p-0 font-normal'>
+                <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+                  <Avatar className='h-8 w-8 rounded-lg'>
                     <AvatarImage src={user?.avatar} alt={user?.username} />
-                    <AvatarFallback className="rounded-lg">
-                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                    <AvatarFallback className='rounded-lg'>
+                      {user?.username?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
+                  <div className='grid flex-1 text-left text-sm leading-tight'>
+                    <span className='truncate font-medium'>
                       {user?.nickname || user?.username}
                     </span>
-                    <span className="truncate text-xs">{user?.email}</span>
+                    <span className='truncate text-xs'>{user?.email}</span>
                   </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={handleProfileClick}>
-                  <BadgeCheck className="mr-2 h-4 w-4" />
+                  <BadgeCheck className='mr-2 h-4 w-4' />
                   <span>帳號</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleFollowPanel}>
-                  <UserCheck className="mr-2 h-4 w-4" />
+                  <UserCheck className='mr-2 h-4 w-4' />
                   <span>關注</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleFriendPanel}>
-                  <Handshake className="mr-2 h-4 w-4" />
+                  <Handshake className='mr-2 h-4 w-4' />
                   <span>好友</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleNotificationPanel}>
-                  <Bell className="mr-2 h-4 w-4" />
+                  <Bell className='mr-2 h-4 w-4' />
                   <span>通知中心</span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className='mr-2 h-4 w-4' />
                 <span>登出</span>
               </DropdownMenuItem>
             </DropdownMenuContent>

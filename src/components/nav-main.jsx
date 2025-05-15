@@ -1,7 +1,8 @@
 'use client';
 
-import { ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
+import { ChevronRight } from 'lucide-react';
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,6 +21,7 @@ import {
 import { Flame } from 'lucide-react';
 
 export function NavMain({ items }) {
+  const router = useRouter();
   const handleHomeRedirect = () => {
     router.push('/');
   };
@@ -28,7 +30,11 @@ export function NavMain({ items }) {
     <SidebarGroup>
       <SidebarGroupLabel>討論</SidebarGroupLabel>
       <SidebarMenu>
-        <SidebarMenuButton tooltip='熱門貼文' onClick={handleHomeRedirect}>
+        <SidebarMenuButton
+          tooltip='熱門貼文'
+          className='cursor-pointer'
+          onClick={handleHomeRedirect}
+        >
           <Flame />
           <span>熱門貼文</span>
         </SidebarMenuButton>

@@ -1,8 +1,19 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import useSWR from "swr";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Eye, ThumbsUp } from 'lucide-react';
 
 // 使用真實的 boardId 映射表
 const boardIdMap = {
@@ -28,8 +39,8 @@ const boardIdMap = {
 const fetcher = async (url) => {
   const response = await fetch(url, {
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
     },
   });
 
@@ -37,7 +48,7 @@ const fetcher = async (url) => {
     const text = await response.text();
     throw new Error(
       response.status === 404
-        ? "無法找到話題 API，請檢查伺服器配置"
+        ? '無法找到貼文 API，請檢查伺服器配置'
         : `伺服器錯誤: ${response.status} - ${text}`
     );
   }
@@ -56,17 +67,17 @@ export function PostList({ board }) {
   const [error, setError] = useState(null);
 
   const boardId = boardIdMap[board];
-  console.log("Board:", board, "BoardId:", boardId);
+  console.log('Board:', board, 'BoardId:', boardId);
   const cacheKey = getPostListCacheKey(boardId);
 
   const { data: posts, error: fetchError } = useSWR(
     cacheKey,
     () => {
       if (!boardId) {
-        throw new Error("無效的分區");
+        throw new Error('無效的分區');
       }
       const url = `/api/post-list?boardId=${boardId}`;
-      console.log("Fetching posts from:", url);
+      console.log('Fetching posts from:', url);
       return fetcher(url);
     },
     {
@@ -75,59 +86,74 @@ export function PostList({ board }) {
     }
   );
 
+  const router = useRouter();
+
   useEffect(() => {
     if (fetchError) {
-      console.error("Fetch error details:", fetchError); // 添加詳細錯誤日誌
+      console.error('Fetch error details:', fetchError); // 添加詳細錯誤日誌
       setError(fetchError.message);
       setIsLoading(false);
     } else if (posts) {
-      console.log("Posts loaded:", posts); // 添加日誌
+      console.log('Posts loaded:', posts); // 添加日誌
       setIsLoading(false);
     }
   }, [fetchError, posts]);
 
   if (isLoading) {
-    return <div className="text-gray-500">載入中...</div>;
+    return <div className='text-gray-500'>載入中...</div>;
   }
 
   if (error) {
     return (
-      <div className="text-red-500">
-        載入話題失敗：{error}
-        {error.includes("404") && (
-          <p className="mt-1 text-sm">
+      <div className='text-red-500'>
+        載入貼文失敗：{error}
+        {error.includes('404') && (
+          <p className='mt-1 text-sm'>
             請確認 <code>app/api/post-list/route.js</code> 是否存在並正確配置。
           </p>
         )}
-        <p className="mt-1 text-sm">請檢查終端日誌以獲取更多錯誤訊息。</p>
+        <p className='mt-1 text-sm'>請檢查終端日誌以獲取更多錯誤訊息。</p>
       </div>
     );
   }
 
   if (posts.length === 0) {
-    return <p className="text-gray-500">目前還沒有話題，快來發表第一個吧！</p>;
+    return <p className='text-gray-500'>目前還沒有貼文，快來發表第一個吧！</p>;
   }
 
   return (
-    <div>
-      <div className="space-y-2">
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            className="border rounded p-2 hover:bg-gray-50 transition-all duration-200"
-          >
-            <Link href={`/view-post/${post.id}`}>
-              <h3 className="text-lg font-semibold hover:text-blue-600">
-                {post.title}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                作者: {post.author?.nickname || "未知"} • 瀏覽: {post.view} •
-                讚: {post.likeCount}
-              </p>
-            </Link>
-          </div>
-        ))}
-      </div>
-    </div>
+    <>
+      {posts.map((post) => (
+        <Card
+          key={post.id}
+          className='cursor-pointer'
+          onClick={() => router.push(`/view-post/${post.id}`)}
+        >
+          <CardHeader>
+            <Badge variant='secondary'>
+              {post.author.nickname || post.author.username}
+            </Badge>
+            <CardDescription>
+              {new Date(post.createdAt).toLocaleString()}
+            </CardDescription>
+            <CardTitle className='text-lg'>{post.title}</CardTitle>
+          </CardHeader>
+          {/* <CardContent>
+              <p>{post.content}</p>
+            </CardContent> */}
+          <CardFooter className='flex gap-2'>
+            <Button variant='ghost' className='pointer-events-none'>
+              <ThumbsUp />
+              {post.likeCount}
+            </Button>
+            <Button variant='ghost' className='pointer-events-none'>
+              <Eye />
+              {post.view}
+            </Button>
+          </CardFooter>
+        </Card>
+      ))}
+      <p className='self-center'>完</p>
+    </>
   );
 }
