@@ -5,12 +5,21 @@ import { Circle, Flag, X } from 'lucide-react';
 import { Backdrop } from '@/components/backdrop';
 import { useRouter } from 'next/navigation';
 import { FriendPanel } from '@/components/FriendPanel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 export function NotificationPanel({
   user,
   isOpen,
   onClose,
   onNotificationRead,
+  children,
 }) {
   const router = useRouter();
   const [notifications, setNotifications] = useState([]);
@@ -179,18 +188,12 @@ export function NotificationPanel({
 
   return (
     <>
-      <Backdrop onClick={onClose} />
-      <div className='fixed inset-0 flex items-center justify-center z-50'>
-        <div className='bg-white rounded-lg shadow-lg w-full max-w-md p-6'>
-          <div className='flex justify-between items-center mb-4'>
-            <h2 className='text-xl font-bold'>通知中心</h2>
-            <button
-              onClick={onClose}
-              className='text-gray-500 hover:text-gray-700'
-            >
-              <X className='h-6 w-6' />
-            </button>
-          </div>
+      {/* <Dialog>
+        <DialogTrigger>{children}</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>通知中心</DialogTitle>
+          </DialogHeader>
           {isLoading && <p className='text-gray-500'>載入中...</p>}
           {error && <p className='text-red-500'>{error}</p>}
           {!isLoading && !error && notifications.length === 0 && (
@@ -223,6 +226,77 @@ export function NotificationPanel({
                       </span>
                     </p>
                     <p className='text-xs text-gray-500 mt-1 truncate'>
+                      {new Date(notification.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  {!notification.isRead && (
+                    <Circle className='h-3 w-3 text-red-500 fill-red-500 ml-2 flex-shrink-0' />
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNotification(notification.id);
+                    }}
+                    className='ml-2 text-red-500 hover:text-red-700'
+                  >
+                    <X className='h-5 w-5' />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <FriendPanel
+            user={user}
+            isOpen={isFriendPanelOpen}
+            onClose={() => {
+              setIsFriendPanelOpen(false);
+              onClose();
+            }}
+          />
+        </DialogContent>
+      </Dialog> */}
+
+      <Backdrop onClick={onClose} />
+      <div className='fixed inset-0 flex items-center justify-center z-50'>
+        <div className='bg-card rounded-lg shadow-lg w-full max-w-md p-6'>
+          <div className='flex justify-between items-center mb-4'>
+            <h2 className='text-xl font-bold'>通知中心</h2>
+            <button onClick={onClose} className=''>
+              <X className='h-6 w-6' />
+            </button>
+          </div>
+          {isLoading && <p className=''>載入中...</p>}
+          {error && <p className='text-red-500'>{error}</p>}
+          {!isLoading && !error && notifications.length === 0 && (
+            <p className=''>暫無通知</p>
+          )}
+          {!isLoading && !error && notifications.length > 0 && (
+            <div className='space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar'>
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className='border rounded p-3  cursor-pointer flex items-center justify-between w-full'
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-sm flex items-center'>
+                      <span
+                        className={`font-medium truncate max-w-[120px] ${
+                          notification.sender?.isRedFlagged
+                            ? 'text-red-500'
+                            : ''
+                        }`}
+                      >
+                        {notification.sender?.nickname || '匿名用戶'}
+                      </span>
+                      {notification.sender?.isRedFlagged && (
+                        <Flag className='ml-1 h-4 w-4 text-red-500' />
+                      )}
+                      <span className='ml-1 truncate'>
+                        {getNotificationMessage(notification)}
+                      </span>
+                    </p>
+                    <p className='text-xs  mt-1 truncate'>
                       {new Date(notification.createdAt).toLocaleString()}
                     </p>
                   </div>

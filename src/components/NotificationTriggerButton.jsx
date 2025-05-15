@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { NotificationPanel } from "@/components/NotificationPanel";
+import React, { useState, useEffect } from 'react';
+import { Bell } from 'lucide-react';
+import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { NotificationPanel } from '@/components/NotificationPanel';
 
 export default function NotificationTriggerButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,8 +12,8 @@ export default function NotificationTriggerButton() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
     if (token && userData) {
       const parsedUser = JSON.parse(userData);
       setUser({ ...parsedUser, token });
@@ -28,31 +28,31 @@ export default function NotificationTriggerButton() {
       setIsOpen(false);
     };
 
-    window.addEventListener("userLoggedOut", handleUserLoggedOut);
+    window.addEventListener('userLoggedOut', handleUserLoggedOut);
     return () =>
-      window.removeEventListener("userLoggedOut", handleUserLoggedOut);
+      window.removeEventListener('userLoggedOut', handleUserLoggedOut);
   }, []);
 
   const fetchUnreadCount = async (token) => {
     try {
-      const response = await fetch("/api/notifications", {
-        method: "GET",
+      const response = await fetch('/api/notifications', {
+        method: 'GET',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || "無法載入通知");
+        throw new Error(data.message || '無法載入通知');
       }
 
       const data = await response.json();
       const unread = data.notifications.filter((n) => !n.isRead).length;
       setUnreadCount(unread);
     } catch (error) {
-      console.error("Error fetching unread notifications:", error);
+      console.error('Error fetching unread notifications:', error);
     }
   };
 
@@ -68,18 +68,24 @@ export default function NotificationTriggerButton() {
 
   return (
     <>
-      <Button
-        variant="outline"
-        className="relative"
+      {/* <NotificationPanel
+        user={user}
+        isOpen={isOpen}
+        onClose={() => {
+          setIsOpen(false);
+          refreshUnreadCount();
+        }}
+        onNotificationRead={refreshUnreadCount} // 傳遞回調函數
+      > */}
+      <SidebarMenuButton
+        className='relative cursor-pointer'
         onClick={() => setIsOpen(true)}
       >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <Badge className="absolute -top-2 -right-2 bg-red-500 text-white">
-            {unreadCount}
-          </Badge>
-        )}
-      </Button>
+        {/* <SidebarMenuButton> */}
+        <Bell />
+        通知
+        {unreadCount > 0 && <Badge className='ml-auto'>{unreadCount}</Badge>}
+      </SidebarMenuButton>
       <NotificationPanel
         user={user}
         isOpen={isOpen}
@@ -89,6 +95,7 @@ export default function NotificationTriggerButton() {
         }}
         onNotificationRead={refreshUnreadCount} // 傳遞回調函數
       />
+      {/* </NotificationPanel> */}
     </>
   );
 }

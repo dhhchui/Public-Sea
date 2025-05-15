@@ -33,9 +33,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FollowPanel } from '@/components/FollowPanel';
 import { FriendPanel } from '@/components/FriendPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FollowPanel } from '@/components/FollowPanel';
-import { FriendPanel } from '@/components/FriendPanel';
 import NotificationTriggerButton from '@/components/NotificationTriggerButton'; // 新增導入
 
 export function NavUser() {
@@ -221,6 +218,10 @@ export function NavUser() {
     <>
       <SidebarMenu>
         <SidebarMenuItem>
+          {/* 移除原有的 NotificationPanel 實例，改用 NotificationTriggerButton */}
+          <NotificationTriggerButton />
+        </SidebarMenuItem>
+        <SidebarMenuItem>
           <ThemeToggle />
         </SidebarMenuItem>
 
@@ -304,8 +305,6 @@ export function NavUser() {
         isOpen={isFriendPanelOpen}
         onClose={() => setIsFriendPanelOpen(false)}
       />
-      {/* 移除原有的 NotificationPanel 實例，改用 NotificationTriggerButton */}
-      <NotificationTriggerButton />
     </>
   );
 }
