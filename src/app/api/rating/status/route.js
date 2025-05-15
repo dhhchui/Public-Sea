@@ -1,65 +1,66 @@
 import prisma from "../../../../lib/prisma";
-import jwt from "jsonwebtoken";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@/lib/authMiddleware";
+import { getRedisClient } from "@/lib/redisClient";
 
-export async function GET(request) {
-  console.log("Received GET request to /api/rating/status");
+export const GET = authMiddleware({ required: true })(
+  async (request, { userId: raterId }) => {
+    console.log("Received GET request to /api/rating/status");
 
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided");
-      return new Response(JSON.stringify({ message: "No token provided" }), {
-        status: 401,
-      });
-    }
+    try {
+      const { searchParams } = new URL(request.url);
+      const ratedUserId = searchParams.get("ratedUserId");
+      if (!ratedUserId) {
+        console.log("Missing ratedUserId");
+        return NextResponse.json(
+          { message: "Rated user ID is required" },
+          { status: 400 }
+        );
+      }
 
-    const token = authHeader.split(" ")[1];
-    console.log("Verifying JWT...");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const raterId = decoded.userId;
+      const ratedUserIdInt = parseInt(ratedUserId);
+      if (isNaN(ratedUserIdInt) || ratedUserIdInt === raterId) {
+        console.log("Invalid ratedUserId or attempting to check self");
+        return NextResponse.json(
+          { message: "Invalid rated user ID or cannot check self" },
+          { status: 400 }
+        );
+      }
 
-    const { searchParams } = new URL(request.url);
-    const ratedUserId = searchParams.get("ratedUserId");
-    if (!ratedUserId) {
-      console.log("Missing ratedUserId");
-      return new Response(
-        JSON.stringify({ message: "Rated user ID is required" }),
-        { status: 400 }
-      );
-    }
+      const cacheKey = `rating:status:${raterId}:${ratedUserIdInt}`;
+      const redis = getRedisClient();
+      let cachedRating = await redis.get(cacheKey);
 
-    const ratedUserIdInt = parseInt(ratedUserId);
-    if (isNaN(ratedUserIdInt) || ratedUserIdInt === raterId) {
-      console.log("Invalid ratedUserId or attempting to check self");
-      return new Response(
-        JSON.stringify({
-          message: "Invalid rated user ID or cannot check self",
-        }),
-        { status: 400 }
-      );
-    }
+      if (cachedRating) {
+        console.log("Returning cached rating status");
+        return NextResponse.json(cachedRating, { status: 200 });
+      }
 
-    const rating = await prisma.userRating.findUnique({
-      where: {
-        raterId_ratedUserId: {
-          raterId,
-          ratedUserId: ratedUserIdInt,
+      console.log("Cache miss, fetching rating from database");
+      const rating = await prisma.userRating.findUnique({
+        where: {
+          raterId_ratedUserId: {
+            raterId,
+            ratedUserId: ratedUserIdInt,
+          },
         },
-      },
-    });
+      });
 
-    return new Response(
-      JSON.stringify({
+      const response = {
         hasRated: !!rating,
         rating: rating ? rating.rating : null,
-      }),
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error in GET /api/rating/status:", error);
-    return new Response(
-      JSON.stringify({ message: "Server error: " + error.message }),
-      { status: 500 }
-    );
+      };
+
+      await redis.set(cacheKey, response, { ex: 3600 }); // TTL 1 小時
+      console.log("Rating status cached successfully");
+
+      return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+      console.error("Error in GET /api/rating/status:", error);
+      return NextResponse.json(
+        { message: "Server error: " + error.message },
+        { status: 500 }
+      );
+    }
   }
-}
+);

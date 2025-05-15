@@ -1,82 +1,63 @@
 import prisma from "../../../lib/prisma";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@/lib/authMiddleware";
+import { getRedisClient } from "@/lib/redisClient";
 
-// 加載環境變數
-dotenv.config();
+export const GET = authMiddleware({ required: true })(
+  async (request, { userId }) => {
+    console.log("Received GET request to /api/user-profile");
 
-export async function GET(request) {
-  console.log("Received GET request to /api/user-profile");
+    try {
+      const cacheKey = `user-profile:${userId}`;
+      const redis = getRedisClient();
+      let cachedUser = await redis.get(cacheKey);
 
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided");
-      return new Response(JSON.stringify({ message: "No token provided" }), {
-        status: 401,
+      if (cachedUser) {
+        console.log("Returning cached user profile");
+        return NextResponse.json({ user: cachedUser }, { status: 200 });
+      }
+
+      console.log("Cache miss, fetching user from database");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          username: true,
+          nickname: true,
+          bio: true,
+          hobbies: true,
+          followerCount: true,
+          followedCount: true,
+          followerIds: true,
+          followedIds: true,
+          rating: true,
+          isRedFlagged: true,
+        },
       });
-    }
 
-    const token = authHeader.split(" ")[1];
-    console.log("Verifying JWT...");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded.userId) {
-      console.log("Invalid token payload");
-      return new Response(JSON.stringify({ message: "Invalid token" }), {
-        status: 401,
-      });
-    }
+      if (!user) {
+        console.log("User not found");
+        return NextResponse.json(
+          { message: "User not found" },
+          { status: 404 }
+        );
+      }
 
-    const userId = parseInt(decoded.userId);
-    if (isNaN(userId)) {
-      console.log("Invalid user ID from token");
-      return new Response(JSON.stringify({ message: "Invalid user ID" }), {
-        status: 400,
-      });
-    }
+      await redis.set(cacheKey, user, { ex: 3600 }); // TTL 1 小時
+      console.log("User profile cached successfully");
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        bio: true,
-        hobbies: true,
-        followerCount: true,
-        followedCount: true,
-        followerIds: true,
-        followedIds: true,
-        rating: true,
-        isRedFlagged: true,
-      },
-    });
-
-    if (!user) {
-      console.log("User not found");
-      return new Response(JSON.stringify({ message: "User not found" }), {
-        status: 404,
-      });
+      return NextResponse.json({ user }, { status: 200 });
+    } catch (error) {
+      console.error("Error in GET /api/user-profile:", error);
+      return NextResponse.json(
+        { message: "Server error: " + error.message },
+        { status: 500 }
+      );
+    } finally {
+      await prisma.$disconnect();
     }
-
-    console.log("User retrieved:", user);
-    return new Response(JSON.stringify({ user }), { status: 200 });
-  } catch (error) {
-    console.error("Error in GET /api/user-profile:", error);
-    if (error.name === "JsonWebTokenError") {
-      console.log("Invalid token");
-      return new Response(JSON.stringify({ message: "Invalid token" }), {
-        status: 401,
-      });
-    }
-    return new Response(
-      JSON.stringify({ message: "Server error: " + error.message }),
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
   }
-}
+);
 
 export async function OPTIONS(request) {
   return new Response(null, {

@@ -1,35 +1,23 @@
 import prisma from "../../../lib/prisma";
 import * as argon2 from "argon2";
-import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
-import dotenv from "dotenv";
-
-// 加載環境變數
-dotenv.config();
+import { generateToken } from "@/lib/jwtUtils";
 
 export async function POST(request) {
   console.log("Received POST request to /api/login");
-  console.log("JWT_SECRET in /api/login:", process.env.JWT_SECRET);
-
-  // 檢查請求體
-  let data;
-  try {
-    data = await request.json();
-    console.log("Request body:", data);
-  } catch (error) {
-    console.error("Error parsing request body:", error);
-    return NextResponse.json({ message: "無效的請求體" }, { status: 400 });
-  }
-
-  const { usernameOrEmail, password } = data;
-
-  // 驗證必要字段
-  if (!usernameOrEmail || !password) {
-    console.log("缺少必要字段");
-    return NextResponse.json({ message: "缺少用戶名/電子郵件或密碼" }, { status: 400 });
-  }
 
   try {
+    const { usernameOrEmail, password } = await request.json();
+    console.log("Request body:", { usernameOrEmail, password });
+
+    if (!usernameOrEmail || !password) {
+      console.log("缺少必要字段");
+      return NextResponse.json(
+        { message: "缺少用戶名/電子郵件或密碼" },
+        { status: 400 }
+      );
+    }
+
     console.log("正在查找用戶...");
     const user = await prisma.user.findFirst({
       where: {
@@ -49,31 +37,23 @@ export async function POST(request) {
       return NextResponse.json({ message: "密碼錯誤" }, { status: 401 });
     }
 
-    // 確保 JWT_SECRET 存在
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is not defined");
-      return NextResponse.json({ message: "伺服器配置錯誤" }, { status: 500 });
-    }
-
-    // 生成 JWT token
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      process.env.JWT_SECRET,
-      { expiresIn: "24h" }
-    );
+    const token = generateToken(user.id); // 使用 jwtUtils 生成 1 小時 token
     console.log("Generated JWT:", token);
 
     console.log("用戶登入成功:", user);
-    return NextResponse.json({
-      message: "登入成功",
-      user: {
-        userId: user.id,
-        username: user.username,
-        email: user.email,
-        nickname: user.nickname,
-        token,
+    return NextResponse.json(
+      {
+        message: "登入成功",
+        user: {
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          nickname: user.nickname,
+          token,
+        },
       },
-    }, { status: 200 });
+      { status: 200 }
+    );
   } catch (error) {
     console.error("POST /api/login 錯誤:", error);
     return NextResponse.json({ message: "伺服器錯誤" }, { status: 500 });
