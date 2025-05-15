@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -32,15 +33,22 @@ export const metadata = {
 
 export default function Layout({ children }) {
   return (
-    <html>
+    <html lang='zh-Hant' suppressHydrationWarning>
       <body>
-        <SidebarProvider>
-          <AppSidebar />
-          <main className='w-full h-screen'>
-            {/* <SidebarTrigger /> */}
-            {children}
-          </main>
-        </SidebarProvider>
+        <ThemeProvider
+          attribute='class'
+          defaultTheme='system'
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SidebarProvider>
+            <AppSidebar />
+            <main className='w-full h-screen'>
+              {/* <SidebarTrigger /> */}
+              {children}
+            </main>
+          </SidebarProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

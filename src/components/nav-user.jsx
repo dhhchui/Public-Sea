@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FollowPanel } from '@/components/FollowPanel';
 import { FriendPanel } from '@/components/FriendPanel';
 import { NotificationPanel } from '@/components/NotificationPanel';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function NavUser() {
   const router = useRouter();
@@ -136,6 +137,9 @@ export function NavUser() {
       <>
         <SidebarMenu>
           <SidebarMenuItem>
+            <ThemeToggle />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
@@ -191,6 +195,10 @@ export function NavUser() {
   return (
     <>
       <SidebarMenu>
+        <SidebarMenuItem>
+          <ThemeToggle />
+        </SidebarMenuItem>
+
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
