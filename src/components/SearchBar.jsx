@@ -129,7 +129,7 @@ export default function SearchBar({ onToggle }) {
   };
 
   const handlePostClick = (boardName, postId) => {
-    router.push(`/boards/${boardName}/posts/${postId}`);
+    router.push(`/view-post/${postId}`);
     setIsSearchOpen(false);
     setSearchQuery('');
     setSearchResults({ users: [], posts: [] });

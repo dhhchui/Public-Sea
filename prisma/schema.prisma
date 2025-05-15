@@ -7,6 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Hobby {
+  id     Int    @id @default(autoincrement())
+  name   String
+  userId Int
+  user   User   @relation(fields: [userId], references: [id])
+  @@index([userId])
+  @@index([name])
+}
+
 model Conversation {
   id           Int         @id @default(autoincrement())
   user1Id      Int
@@ -14,10 +23,10 @@ model Conversation {
   user1        User        @relation("User1Conversations", fields: [user1Id], references: [id])
   user2        User        @relation("User2Conversations", fields: [user2Id], references: [id])
   messages     Message[]
+  notifications Notification[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-
-  @@index([user1Id, user2Id]) // 瘛餃?銴?蝝Ｗ?
+  @@index([user1Id, user2Id])
 }
 
 model Message {
@@ -28,10 +37,9 @@ model Message {
   createdAt     DateTime    @default(now())
   sender        User        @relation("UserMessages", fields: [senderId], references: [id])
   conversation  Conversation @relation(fields: [conversationId], references: [id])
-
   @@index([conversationId])
   @@index([senderId])
-  @@index([createdAt]) // 瘛餃? createdAt 蝝Ｗ?
+  @@index([createdAt])
 }
 
 model Comment {
@@ -44,8 +52,9 @@ model Comment {
   updatedAt DateTime @updatedAt
   author    User     @relation("UserComments", fields: [authorId], references: [id])
   post      Post     @relation(fields: [postId], references: [id])
-
   @@index([createdAt])
+  @@index([authorId])
+  @@index([postId])
 }
 
 model Like {
@@ -55,8 +64,8 @@ model Like {
   itemType  String
   createdAt DateTime @default(now())
   user      User     @relation("UserLikes", fields: [userId], references: [id])
-
   @@unique([userId, itemId, itemType])
+  @@index([userId])
 }
 
 model Board {
@@ -68,20 +77,23 @@ model Board {
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
-  title     String
-  content   String
-  authorId  Int
-  likeCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  view      BigInt    @default(0)
-  boardId   Int
-  board     Board     @relation(fields: [boardId], references: [id])
-  comments  Comment[]
-  author    User      @relation("UserPosts", fields: [authorId], references: [id])
-
+  id           Int         @id @default(autoincrement())
+  title        String
+  content      String
+  authorId     Int
+  likeCount    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  view         BigInt      @default(0)
+  boardId      Int
+  board        Board       @relation(fields: [boardId], references: [id])
+  comments     Comment[]
+  author       User        @relation("UserPosts", fields: [authorId], references: [id])
+  notifications Notification[]
   @@index([createdAt])
+  @@index([authorId])
+  @@index([boardId])
+  @@index([likeCount])
 }
 
 model FriendRequest {
@@ -93,8 +105,9 @@ model FriendRequest {
   updatedAt    DateTime @updatedAt
   sender       User     @relation("SentFriendRequests", fields: [senderId], references: [id])
   receiver     User     @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
-
   @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
 }
 
 model UserRating {
@@ -106,8 +119,9 @@ model UserRating {
   updatedAt    DateTime @updatedAt
   rater        User     @relation("GivenRatings", fields: [raterId], references: [id])
   ratedUser    User     @relation("ReceivedRatings", fields: [ratedUserId], references: [id])
-
   @@unique([raterId, ratedUserId])
+  @@index([raterId])
+  @@index([ratedUserId])
 }
 
 model Block {
@@ -117,8 +131,9 @@ model Block {
   createdAt    DateTime @default(now())
   blocker      User     @relation("Blocker", fields: [blockerId], references: [id])
   blocked      User     @relation("Blocked", fields: [blockedId], references: [id])
-
   @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
 
 model User {
@@ -129,7 +144,7 @@ model User {
   password            String
   bio                 String?
   gender              String           @default("undisclosed")
-  hobbies             String[]
+  hobbies             Hobby[]          // 改為與 Hobby 模型的關聯
   followerCount       Int              @default(0)
   followedCount       Int              @default(0)
   followerIds         Int[]
@@ -152,19 +167,28 @@ model User {
   receivedRatings     UserRating[]     @relation("ReceivedRatings")
   blockedUsers        Block[]          @relation("Blocker")
   blockedBy           Block[]          @relation("Blocked")
-  notifications       Notification[]   @relation("UserNotifications")
-  sentNotifications   Notification[]   @relation("SenderNotifications")
+  notifications       Notification[]   @relation("Notifications")
+  senderNotifications Notification[]   @relation("SenderNotifications")
+  @@index([followerCount])
+  @@index([isRedFlagged])
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  type      String  
-  source    String?  
-  relatedId Int      
-  senderId  Int      
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation("UserNotifications", fields: [userId], references: [id])
-  sender    User     @relation("SenderNotifications", fields: [senderId], references: [id])
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  type           String
+  content        String?
+  senderId       Int
+  postId         Int?
+  conversationId Int?        // 新增欄位
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  user           User        @relation("Notifications", fields: [userId], references: [id])
+  sender         User        @relation("SenderNotifications", fields: [senderId], references: [id])
+  post           Post?       @relation(fields: [postId], references: [id])
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([conversationId])
 }

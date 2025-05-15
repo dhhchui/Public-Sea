@@ -37,84 +37,50 @@ const boardIdMap = {
 
 // 自訂 fetcher 函數給 useSWR 使用
 const fetcher = async (url) => {
+  const token = localStorage.getItem('token');
+
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-    },
+    method: 'GET',
+    headers,
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(
-      response.status === 404
-        ? '無法找到貼文 API，請檢查伺服器配置'
-        : `伺服器錯誤: ${response.status} - ${text}`
-    );
+    throw new Error(`伺服器錯誤: ${response.status} - ${text}`);
   }
 
   const data = await response.json();
   return data.posts || [];
 };
 
-// 定義快取鍵生成函數，以便外部觸發重新驗證
-export const getPostListCacheKey = (boardId) => {
-  return boardId ? `posts:${boardId}` : null;
-};
-
-export function PostList({ board }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const boardId = boardIdMap[board];
-  console.log('Board:', board, 'BoardId:', boardId);
-  const cacheKey = getPostListCacheKey(boardId);
-
-  const { data: posts, error: fetchError } = useSWR(
-    cacheKey,
-    () => {
-      if (!boardId) {
-        throw new Error('無效的分區');
-      }
-      const url = `/api/post-list?boardId=${boardId}`;
-      console.log('Fetching posts from:', url);
-      return fetcher(url);
-    },
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 300000,
-    }
-  );
-
+export function PostList({ boardId }) {
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (fetchError) {
-      console.error('Fetch error details:', fetchError); // 添加詳細錯誤日誌
-      setError(fetchError.message);
-      setIsLoading(false);
-    } else if (posts) {
-      console.log('Posts loaded:', posts); // 添加日誌
-      setIsLoading(false);
-    }
-  }, [fetchError, posts]);
+    setIsMounted(true);
+  }, []);
 
-  if (isLoading) {
-    return <div className='text-gray-500'>載入中...</div>;
-  }
+  const { data: posts = [], error } = useSWR(
+    isMounted && boardId ? `/api/post-list?boardId=${boardId}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 300000, // 5 分鐘去重間隔
+      fallbackData: [],
+    }
+  );
 
   if (error) {
-    return (
-      <div className='text-red-500'>
-        載入貼文失敗：{error}
-        {error.includes('404') && (
-          <p className='mt-1 text-sm'>
-            請確認 <code>app/api/post-list/route.js</code> 是否存在並正確配置。
-          </p>
-        )}
-        <p className='mt-1 text-sm'>請檢查終端日誌以獲取更多錯誤訊息。</p>
-      </div>
-    );
+    return <p className='text-center text-red-500'>{error.message}</p>;
   }
 
   if (posts.length === 0) {

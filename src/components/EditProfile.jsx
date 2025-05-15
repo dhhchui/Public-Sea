@@ -1,4 +1,4 @@
-/* 'use client';
+/*"use client";
 
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
@@ -13,7 +13,23 @@ export default function EditProfile({ onSuccess }) {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const hobbyOptions = ['Reading', 'Swimming', 'Gaming', 'Cooking'];
+  const hobbyOptions = [
+    "Reading",
+    "Swimming",
+    "Gaming",
+    "Cooking",
+    "Hiking",
+    "Photography",
+    "Traveling",
+    "Music",
+    "Dancing",
+    "Painting",
+    "Writing",
+    "Gardening",
+    "Cycling",
+    "Yoga",
+    "Movies",
+  ];
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -199,19 +215,24 @@ export default function EditProfile({ onSuccess }) {
           className='w-full p-2 mb-4 border rounded'
           rows='3'
         />
-        <div className='mb-4'>
-          <p className='font-bold'>Hobbies:</p>
-          {hobbyOptions.map((hobby) => (
-            <label key={hobby} className='flex items-center space-x-2'>
-              <input
-                type='checkbox'
-                checked={formData.hobbies.includes(hobby)}
-                onChange={() => handleHobbyChange(hobby)}
-                className='form-checkbox'
-              />
-              <span>{hobby}</span>
-            </label>
-          ))}
+        <div className="mb-4">
+          <p className="font-bold mb-2">Hobbies:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {hobbyOptions.map((hobby) => (
+              <label
+                key={hobby}
+                className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-100"
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.hobbies.includes(hobby)}
+                  onChange={() => handleHobbyChange(hobby)}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span className="text-sm">{hobby}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <button
           type='submit'
@@ -230,4 +251,5 @@ EditProfile.propTypes = {
 
 EditProfile.defaultProps = {
   onSuccess: () => {},
-}; */
+};
+*/

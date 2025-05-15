@@ -8,7 +8,7 @@ export default function BoardContent({ board, boardData }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const postId = searchParams.get('postId');
-  const boardTitle = boardData ? boardData.name : board;
+  const boardTitle = boardData ? boardData.name : board; // 使用 name 而非 title
 
   useEffect(() => {
     if (postId) {

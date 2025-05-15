@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 export async function POST(request) {
   console.log("Received POST request to /api/friend-request/send");
+  const startTime = performance.now();
 
   try {
     const authHeader = request.headers.get("Authorization");
@@ -18,10 +19,9 @@ export async function POST(request) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const senderId = decoded.userId;
 
-    // 檢查發送者是否被 redflagged
     const sender = await prisma.user.findUnique({
       where: { id: senderId },
-      select: { isRedFlagged: true },
+      select: { isRedFlagged: true, nickname: true },
     });
 
     if (!sender) {
@@ -95,19 +95,42 @@ export async function POST(request) {
       });
     }
 
+    // 檢查是否已是好友
+    const senderUser = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { friends: true },
+    });
+    if (senderUser.friends.includes(receiverIdInt)) {
+      console.log("You are already friends");
+      return new Response(JSON.stringify({ message: "你們已是好友" }), {
+        status: 400,
+      });
+    }
+
+    // 檢查是否已存在任何狀態的請求（不僅限於 pending）
     const existingRequest = await prisma.friendRequest.findFirst({
       where: {
         senderId,
         receiverId: receiverIdInt,
-        status: "pending",
       },
     });
 
     if (existingRequest) {
-      console.log("Friend request already exists");
-      return new Response(JSON.stringify({ message: "好友請求已存在" }), {
-        status: 400,
-      });
+      console.log(
+        "Friend request already exists with status:",
+        existingRequest.status
+      );
+      return new Response(
+        JSON.stringify({
+          message:
+            existingRequest.status === "pending"
+              ? "已發送過待處理的好友請求"
+              : existingRequest.status === "accepted"
+              ? "你們已是好友"
+              : "之前已發送過請求，請等待對方處理",
+        }),
+        { status: 400 }
+      );
     }
 
     const friendRequest = await prisma.friendRequest.create({
@@ -126,6 +149,22 @@ export async function POST(request) {
       },
     });
 
+    await prisma.notification.create({
+      data: {
+        userId: receiverIdInt,
+        type: "FRIEND_REQUEST",
+        content: `${sender.nickname || "一位用戶"} 發送了好友請求`,
+        senderId,
+        isRead: false,
+        createdAt: new Date(),
+      },
+    });
+    console.log(
+      `Generated FRIEND_REQUEST notification for user ${receiverIdInt}`
+    );
+
+    const endTime = performance.now();
+    console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
     return new Response(
       JSON.stringify({ message: "好友請求已發送", friendRequest }),
       { status: 201 }

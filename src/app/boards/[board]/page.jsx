@@ -41,7 +41,7 @@ export async function generateStaticParams() {
       headers: {
         'Content-Type': 'application/json',
       },
-      next: { revalidate: 86400 }, // 快取 24 小時
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {
@@ -53,7 +53,7 @@ export async function generateStaticParams() {
     const boards = data.boards || [];
 
     return boards.map((board) => ({
-      board: encodeURIComponent(board.name), // 編碼中文名稱
+      board: encodeURIComponent(board.name),
     }));
   } catch (error) {
     console.error('Error in generateStaticParams:', error);
@@ -71,7 +71,7 @@ export default async function BoardPage({ params, searchParams }) {
       headers: {
         'Content-Type': 'application/json',
       },
-      next: { revalidate: 86400 }, // 快取 24 小時
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {
@@ -81,6 +81,9 @@ export default async function BoardPage({ params, searchParams }) {
 
     const data = await res.json();
     const boards = data.boards || [];
+
+    console.log('Decoded board:', decodedBoard);
+    console.log('Boards fetched:', boards);
 
     const boardData = boards.find((item) => item.name === decodedBoard);
 

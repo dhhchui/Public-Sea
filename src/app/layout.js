@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import NotificationTriggerButton from '@/components/NotificationTriggerButton';
 import { ThemeProvider } from '@/components/theme-provider';
 
 const geistSans = Geist({
@@ -45,6 +46,7 @@ export default function Layout({ children }) {
             <AppSidebar />
             <main className='w-full h-screen'>
               {/* <SidebarTrigger /> */}
+              <NotificationTriggerButton />
               {children}
             </main>
           </SidebarProvider>

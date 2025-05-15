@@ -11,7 +11,7 @@ const redis = new Redis({
 
 export async function GET(request, { params }) {
   console.log("Received GET request to /api/view-post/[postId]");
-  const startTime = performance.now(); // 記錄請求開始時間
+  const startTime = performance.now();
 
   try {
     console.log("DATABASE_URL:", process.env.DATABASE_URL);
@@ -51,17 +51,23 @@ export async function GET(request, { params }) {
     // 嘗試從 Redis 獲取快取數據
     const cachedPost = await redis.get(cacheKey);
     if (cachedPost) {
-      // 從快取中獲取數據後，獨立更新瀏覽次數
+      let updatedPost;
       try {
-        await prisma.post.update({
+        updatedPost = await prisma.post.update({
           where: { id: postIdInt },
-          data: {
-            view: { increment: 1 },
-          },
+          data: { view: { increment: 1 } },
+          select: { view: true },
         });
       } catch (dbError) {
         console.error("Database error while updating view count:", dbError);
       }
+
+      const updatedCachedPost = {
+        ...cachedPost,
+        view: updatedPost.view.toString(),
+      };
+
+      await redis.set(cacheKey, updatedCachedPost, { ex: 300 });
 
       const endTime = performance.now();
       console.log(
@@ -69,10 +75,9 @@ export async function GET(request, { params }) {
           2
         )}ms`
       );
-      return NextResponse.json({ post: cachedPost }, { status: 200 });
+      return NextResponse.json({ post: updatedCachedPost }, { status: 200 });
     }
 
-    // 如果快取不存在，查詢資料庫
     console.log("Cache miss, fetching post from database");
     let blockedUsers = [];
     let usersWhoBlockedMe = [];
@@ -148,26 +153,10 @@ export async function GET(request, { params }) {
     }
 
     if (!post) {
-      console.log("Post not found");
+      console.log("Post not found for postId:", postIdInt);
       return new Response(JSON.stringify({ message: "Post not found" }), {
         status: 404,
       });
-    }
-
-    // 驗證 board 參數與 post.board.name 匹配
-    const boardParam = request.url.match(/\/boards\/([^\/]+)/)?.[1];
-    if (boardParam && decodeURIComponent(boardParam) !== post.board.name) {
-      console.log("Post does not belong to the requested board:", {
-        postIdInt,
-        boardParam,
-        postBoard: post.board.name,
-      });
-      return new Response(
-        JSON.stringify({
-          message: "Post does not belong to the requested board",
-        }),
-        { status: 404 }
-      );
     }
 
     if (userId) {
@@ -199,7 +188,6 @@ export async function GET(request, { params }) {
         .filter((comment) => comment !== null);
     }
 
-    // 更新瀏覽次數
     try {
       await prisma.post.update({
         where: { id: postIdInt },
@@ -217,7 +205,6 @@ export async function GET(request, { params }) {
       // 移除 board: undefined，恢復 board 字段
     };
 
-    // 將數據儲存到快取，快取 5 分鐘（300秒）
     await redis.set(cacheKey, serializedPost, { ex: 300 });
     console.log("Post cached successfully");
 

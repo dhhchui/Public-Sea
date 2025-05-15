@@ -13,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { RegisterForm } from '@/components/register-form';
-import ResetPasswordForm from '@/components/reset-password-form';
+import { RegisterForm } from './register-form';
+import RequestResetPasswordForm from './RequestResetPasswordForm'; // 新增導入
 
 export function LoginForm({ className, ...props }) {
   const router = useRouter();
@@ -23,7 +23,7 @@ export function LoginForm({ className, ...props }) {
     password: '',
   });
   const [message, setMessage] = useState({ text: '', type: '' });
-  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isRequestResetOpen, setIsRequestResetOpen] = useState(false); // 改為控制 RequestResetPasswordForm
   const [isRegisterFormOpen, setIsRegisterFormOpen] = useState(false);
 
   const handleChange = (e) => {
@@ -85,14 +85,14 @@ export function LoginForm({ className, ...props }) {
     setIsRegisterFormOpen(!isRegisterFormOpen);
   };
 
-  const openResetForm = () => {
-    console.log('Opening reset password form');
-    setIsResetOpen(true);
+  const openRequestResetForm = () => {
+    console.log('Opening request reset password form');
+    setIsRequestResetOpen(true);
   };
 
-  const closeResetForm = () => {
-    console.log('Closing reset password form');
-    setIsResetOpen(false);
+  const closeRequestResetForm = () => {
+    console.log('Closing request reset password form');
+    setIsRequestResetOpen(false);
   };
 
   if (isRegisterFormOpen) {
@@ -153,7 +153,7 @@ export function LoginForm({ className, ...props }) {
                 <div className='flex flex-col gap-3'>
                   <button
                     type='button'
-                    onClick={openResetForm}
+                    onClick={openRequestResetForm}
                     className='text-red-600 text-sm font-medium text-left underline underline-offset-4 cursor-pointer'
                   >
                     忘記密碼
@@ -167,16 +167,16 @@ export function LoginForm({ className, ...props }) {
           </CardContent>
         </Card>
       </div>
-      {isResetOpen && (
+      {isRequestResetOpen && (
         <div className='fixed inset-0 bg-gray-900 bg-opacity-80 backdrop-blur-sm z-[1002] flex justify-center items-center'>
           <div className='bg-white p-6 rounded-lg shadow-lg w-full max-w-md relative'>
             <button
-              onClick={closeResetForm}
+              onClick={closeRequestResetForm}
               className='absolute top-2 right-2 text-gray-500 hover:text-gray-700'
             >
               ×
             </button>
-            <ResetPasswordForm onClose={closeResetForm} />
+            <RequestResetPasswordForm onClose={closeRequestResetForm} />
           </div>
         </div>
       )}

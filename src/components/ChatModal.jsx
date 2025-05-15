@@ -14,19 +14,20 @@ import MessageInput from '@/components/MessageInput';
 import Pusher from 'pusher-js';
 import useSWR from 'swr';
 import { FixedSizeList } from 'react-window';
+import { Check, Loader2 } from 'lucide-react';
 
 // 自訂 fetcher 函數給 useSWR 使用
 const fetcher = async (url, token) => {
-  if (!token) {
-    throw new Error('請先登入');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const res = await fetch(url, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
   });
 
   const contentType = res.headers.get('content-type');
@@ -59,6 +60,7 @@ const formatMessage = (message, currentUserId) => {
     ...message,
     isOwnMessage,
     formattedTime,
+    status: message.status || 'sent',
   };
 };
 
@@ -88,9 +90,24 @@ const ConversationPane = React.memo(
               }`}
             >
               <p>{message.content}</p>
-              <p className='text-xs text-slate-500 mt-1 text-right'>
-                {message.formattedTime}
-              </p>
+              <div className='flex items-center justify-end mt-1'>
+                <p className='text-xs text-slate-500 mr-1'>
+                  {message.formattedTime}
+                </p>
+                {message.isOwnMessage && (
+                  <span className='text-xs text-slate-500'>
+                    {message.status === 'sending' && (
+                      <Loader2 className='h-3 w-3 animate-spin' />
+                    )}
+                    {message.status === 'sent' && (
+                      <Check className='h-3 w-3 text-green-500' />
+                    )}
+                    {message.status === 'failed' && (
+                      <span className='text-red-500'>!</span>
+                    )}
+                  </span>
+                )}
+              </div>
               <div
                 className={`absolute top-0 w-4 h-4 ${
                   message.isOwnMessage
@@ -105,14 +122,14 @@ const ConversationPane = React.memo(
     });
 
     return (
-      <div className='w-2/3 flex flex-col'>
+      <div className='w-2/3 flex flex-col h-full'>
         <span id='dialog-description' className='sr-only'>
           這是一個用於私聊的對話視窗，顯示對話列表和訊息內容。
         </span>
         {selectedConversation ? (
           <>
-            <DialogHeader className='p-4 bg-white border-b border-slate-200 flex items-center'>
-              <DialogTitle className='text-lg font-semibold text-slate-800'>
+            <DialogHeader className='p-4 bg-blue-500 border-b border-blue-600 flex items-center text-white'>
+              <DialogTitle className='text-lg font-semibold'>
                 與{' '}
                 {selectedConversation.user1Id === userId
                   ? selectedConversation.user2.nickname
@@ -120,7 +137,10 @@ const ConversationPane = React.memo(
               </DialogTitle>
             </DialogHeader>
 
-            <div className='flex-1 p-4 bg-slate-50'>
+            <div
+              className='flex-1 p-4 bg-gray-100 overflow-y-auto'
+              style={{ height: 'calc(90vh - 200px)' }}
+            >
               {messages.length === 0 ? (
                 <div className='flex items-center justify-center h-full'>
                   <p className='text-slate-500'>開始聊天吧！</p>
@@ -131,6 +151,7 @@ const ConversationPane = React.memo(
                   width='100%'
                   itemCount={messages.length}
                   itemSize={100}
+                  className='overflow-hidden'
                 >
                   {MessageRow}
                 </FixedSizeList>
@@ -138,12 +159,12 @@ const ConversationPane = React.memo(
               <div ref={messagesEndRef} />
             </div>
 
-            <div className='p-4 bg-white border-t border-slate-200'>
+            <div className='p-4 bg-gray-200 border-t border-gray-300'>
               <MessageInput onSendMessage={onSendMessage} />
             </div>
           </>
         ) : (
-          <div className='flex-1 flex items-center justify-center bg-slate-50'>
+          <div className='flex-1 flex items-center justify-center bg-gray-100'>
             <p className='text-slate-500'>選擇一個對話開始聊天</p>
           </div>
         )}
@@ -164,7 +185,6 @@ export default function ChatModal({ isOpen, onClose }) {
   const [token, setToken] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // 客戶端環境中初始化 userId 和 token
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const userData = localStorage.getItem('user');
@@ -183,7 +203,6 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   }, [isOpen, onClose, userId]);
 
-  // 初始化 Pusher
   useEffect(() => {
     if (!isOpen) return;
 
@@ -198,7 +217,6 @@ export default function ChatModal({ isOpen, onClose }) {
     };
   }, [isOpen]);
 
-  // 監聽 Pusher 訊息
   useEffect(() => {
     if (!pusher || !selectedConversation) return;
 
@@ -206,7 +224,31 @@ export default function ChatModal({ isOpen, onClose }) {
     channel.bind('new-message', (data) => {
       const startTime = performance.now();
       const formattedData = formatMessage(data, userId);
-      setMessages((prev) => [...prev, formattedData]);
+
+      setMessages((prev) => {
+        // 嘗試根據 tempKey 匹配樂觀更新的訊息
+        const matchingMessage = prev.find(
+          (msg) =>
+            msg.tempKey &&
+            msg.content === formattedData.content &&
+            Math.abs(
+              new Date(msg.createdAt) - new Date(formattedData.createdAt)
+            ) < 1000
+        );
+
+        if (matchingMessage) {
+          // 更新樂觀訊息的 id 和 status
+          return prev.map((msg) =>
+            msg.tempKey === matchingMessage.tempKey
+              ? { ...formattedData, tempKey: undefined }
+              : msg
+          );
+        }
+
+        // 如果不是自己的訊息，直接添加
+        return [...prev, formattedData];
+      });
+
       const endTime = performance.now();
       console.log(
         `Frontend message processing time: ${(endTime - startTime).toFixed(
@@ -221,7 +263,6 @@ export default function ChatModal({ isOpen, onClose }) {
     };
   }, [pusher, selectedConversation, userId]);
 
-  // 使用 useSWR 快取對話列表
   const { data: conversationsData, error: conversationsError } = useSWR(
     userId ? ['/api/conversations', token] : null,
     ([url, token]) => fetcher(url, token),
@@ -242,7 +283,6 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   }, [conversationsData]);
 
-  // 使用 useSWR 快取訊息
   const {
     data: messagesData,
     error: messagesError,
@@ -277,7 +317,6 @@ export default function ChatModal({ isOpen, onClose }) {
     }
   }, [messagesData, selectedConversation, userId]);
 
-  // 自動滾動到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -399,9 +438,35 @@ export default function ChatModal({ isOpen, onClose }) {
   const handleSendMessage = async (content) => {
     if (!selectedConversation || !content) return;
 
+    const createdAt = new Date().toISOString();
+    const tempKey = `${createdAt}-${content}`; // 用時間戳和內容生成唯一標識
+    const optimisticMessage = {
+      id: `temp-${Date.now()}`,
+      content,
+      senderId: userId,
+      createdAt,
+      isOwnMessage: true,
+      formattedTime: new Date().toLocaleString('zh-HK', {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      status: 'sending',
+      tempKey, // 添加 tempKey 用於匹配
+    };
+
+    // 樂觀更新：立即顯示訊息
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     try {
       if (!token) {
         setError('請先登入');
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.tempKey === tempKey ? { ...msg, status: 'failed' } : msg
+          )
+        );
         return;
       }
 
@@ -431,30 +496,40 @@ export default function ChatModal({ isOpen, onClose }) {
         const data = JSON.parse(responseText);
         if (res.ok) {
           setError('');
-          // 觸發重新驗證訊息數據
-          await mutate();
         } else {
           setError(data.message || '無法發送訊息');
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.tempKey === tempKey ? { ...msg, status: 'failed' } : msg
+            )
+          );
         }
       } catch (err) {
         console.error('Unexpected response format:', responseText);
         setError('伺服器響應格式錯誤');
-        return;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.tempKey === tempKey ? { ...msg, status: 'failed' } : msg
+          )
+        );
       }
     } catch (err) {
       console.error('Error sending message:', err);
       setError('發送訊息時發生錯誤：' + err.message);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.tempKey === tempKey ? { ...msg, status: 'failed' } : msg
+        )
+      );
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className='max-w-5xl h-[90vh] flex p-0 rounded-lg shadow-lg border border-slate-200'>
-        <div className='w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col'>
-          <DialogHeader className='p-4 bg-white border-b border-slate-200'>
-            <DialogTitle className='text-lg font-semibold text-slate-800'>
-              對話
-            </DialogTitle>
+        <div className='w-1/3 bg-gray-200 border-r border-gray-300 flex flex-col'>
+          <DialogHeader className='p-4 bg-blue-500 border-b border-blue-600 flex items-center text-white'>
+            <DialogTitle className='text-lg font-semibold'>對話</DialogTitle>
           </DialogHeader>
           <div className='p-4 flex-1 overflow-y-auto'>
             <div className='flex flex-col gap-2 mb-4'>
