@@ -1,7 +1,7 @@
-import prisma from "../../../lib/prisma";
-import jwt from "jsonwebtoken";
-import Pusher from "pusher";
-import { Redis } from "@upstash/redis";
+import prisma from '../../../lib/prisma';
+import jwt from 'jsonwebtoken';
+import Pusher from 'pusher';
+import { Redis } from '@upstash/redis';
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -18,20 +18,20 @@ const redis = new Redis({
 });
 
 export async function POST(request) {
-  console.log("Received POST request to /api/send-message");
+  console.log('Received POST request to /api/send-message');
   const startTime = performance.now();
 
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("No token provided");
-      return new Response(JSON.stringify({ message: "No token provided" }), {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No token provided');
+      return new Response(JSON.stringify({ message: 'No token provided' }), {
         status: 401,
       });
     }
 
-    const token = authHeader.split(" ")[1];
-    console.log("Verifying JWT...");
+    const token = authHeader.split(' ')[1];
+    console.log('Verifying JWT...');
     const jwtStartTime = performance.now();
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const senderId = decoded.userId;
@@ -41,13 +41,13 @@ export async function POST(request) {
     );
 
     const { receiverId, content } = await request.json();
-    console.log("Request body:", { receiverId, content });
+    console.log('Request body:', { receiverId, content });
 
     if (!receiverId || !content) {
-      console.log("Missing receiverId or content");
+      console.log('Missing receiverId or content');
       return new Response(
         JSON.stringify({
-          message: "Receiver ID and message content are required",
+          message: 'Receiver ID and message content are required',
         }),
         { status: 400 }
       );
@@ -55,19 +55,19 @@ export async function POST(request) {
 
     const receiverIdInt = parseInt(receiverId);
     if (isNaN(receiverIdInt)) {
-      console.log("Invalid receiverId");
-      return new Response(JSON.stringify({ message: "Invalid receiverId" }), {
+      console.log('Invalid receiverId');
+      return new Response(JSON.stringify({ message: 'Invalid receiverId' }), {
         status: 400,
       });
     }
 
     // 檢查對話是否存在（使用快取）
     const cacheKey = `conversation:user:${senderId}:${receiverIdInt}`;
-    console.log("Checking cache for key:", cacheKey);
+    console.log('Checking cache for key:', cacheKey);
 
     let conversation = await redis.get(cacheKey);
     if (!conversation) {
-      console.log("Cache miss, fetching conversation from database");
+      console.log('Cache miss, fetching conversation from database');
       const dbStartTime = performance.now();
       conversation = await prisma.conversation.findFirst({
         where: {
@@ -79,7 +79,7 @@ export async function POST(request) {
       });
 
       if (!conversation) {
-        console.log("Conversation not found, creating new conversation");
+        console.log('Conversation not found, creating new conversation');
         conversation = await prisma.conversation.create({
           data: {
             user1Id: senderId,
@@ -95,12 +95,12 @@ export async function POST(request) {
 
       // 快取對話數據，TTL 為 1 小時（3600秒）
       await redis.set(cacheKey, conversation, { ex: 3600 });
-      console.log("Conversation cached successfully");
+      console.log('Conversation cached successfully');
     } else {
-      console.log("Returning cached conversation");
+      console.log('Returning cached conversation');
     }
 
-    // 創建訊息
+    // 新增訊息
     const messageStartTime = performance.now();
     const message = await prisma.message.create({
       data: {
@@ -145,7 +145,7 @@ export async function POST(request) {
       createdAt: message.createdAt.toISOString(),
       sender: {
         id: senderId,
-        nickname: "Sender", // 假設發送者 nickname，避免查詢
+        nickname: 'Sender', // 假設發送者 nickname，避免查詢
       },
     };
 
@@ -154,12 +154,12 @@ export async function POST(request) {
       try {
         await pusher.trigger(
           `conversation-${conversation.id}`,
-          "new-message",
+          'new-message',
           serializedMessage
         );
-        console.log("Pusher notification sent");
+        console.log('Pusher notification sent');
       } catch (pusherError) {
-        console.error("Error sending Pusher notification:", pusherError);
+        console.error('Error sending Pusher notification:', pusherError);
       }
     }, 0);
 
@@ -167,15 +167,15 @@ export async function POST(request) {
     console.log(`Total response time: ${(endTime - startTime).toFixed(2)}ms`);
 
     return new Response(
-      JSON.stringify({ message: "Message sent successfully" }),
+      JSON.stringify({ message: 'Message sent successfully' }),
       {
         status: 201,
       }
     );
   } catch (error) {
-    console.error("Error in POST /api/send-message:", error);
+    console.error('Error in POST /api/send-message:', error);
     return new Response(
-      JSON.stringify({ message: "Server error: " + error.message }),
+      JSON.stringify({ message: 'Server error: ' + error.message }),
       { status: 500 }
     );
   } finally {

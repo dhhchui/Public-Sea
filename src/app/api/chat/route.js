@@ -1,10 +1,10 @@
-import prisma from "../../../lib/prisma";
-import { getServerSession } from "next-auth";
+import prisma from '../../../lib/prisma';
+import { getServerSession } from 'next-auth';
 
 export async function POST(request) {
   const session = await getServerSession();
   if (!session || !session.user) {
-    return new Response(JSON.stringify({ message: "請先登入" }), {
+    return new Response(JSON.stringify({ message: '請先登入' }), {
       status: 401,
     });
   }
@@ -12,7 +12,7 @@ export async function POST(request) {
   const { content, postId } = await request.json();
   if (!content || !postId) {
     return new Response(
-      JSON.stringify({ message: "留言內容和話題 ID 為必填" }),
+      JSON.stringify({ message: '留言內容和貼文 ID 為必填' }),
       { status: 400 }
     );
   }
@@ -26,11 +26,11 @@ export async function POST(request) {
         createdAt: new Date(),
       },
     });
-    return new Response(JSON.stringify({ message: "留言提交成功", chat }), {
+    return new Response(JSON.stringify({ message: '留言提交成功', chat }), {
       status: 201,
     });
   } catch (error) {
-    return new Response(JSON.stringify({ message: "伺服器錯誤" }), {
+    return new Response(JSON.stringify({ message: '伺服器錯誤' }), {
       status: 500,
     });
   }

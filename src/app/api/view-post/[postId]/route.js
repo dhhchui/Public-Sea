@@ -202,7 +202,7 @@ export async function GET(request, { params }) {
     const serializedPost = {
       ...post,
       view: post.view.toString(),
-      board: undefined,
+      // 移除 board: undefined，恢復 board 字段
     };
 
     await redis.set(cacheKey, serializedPost, { ex: 300 });
