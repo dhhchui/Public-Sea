@@ -99,7 +99,11 @@ export default function CreatePost({ children }) {
       if (res.ok) {
         setSuccess('新增貼文成功！即將跳轉...');
         setTimeout(() => {
-          router.push('/post-list');
+          router.push(
+            `/boards/${
+              boards.find((board) => board.id === parseInt(boardId)).name
+            }`
+          );
         }, 1000);
         setTitle('');
         setContent('');
@@ -167,16 +171,13 @@ export default function CreatePost({ children }) {
             </div>
             <div className='grid gap-2'>
               <Label>看板</Label>
-              <Select
-                value={boardId}
-                onChange={(e) => setBoardId(e.target.value)}
-              >
+              <Select value={boardId} onValueChange={setBoardId}>
                 <SelectTrigger className='w-full'>
                   <SelectValue placeholder='選擇看板' />
                 </SelectTrigger>
                 <SelectContent>
                   {boards.map((board) => (
-                    <SelectItem key={board.id} value={board.id}>
+                    <SelectItem key={board.id} value={board.id.toString()}>
                       {board.name}
                     </SelectItem>
                   ))}

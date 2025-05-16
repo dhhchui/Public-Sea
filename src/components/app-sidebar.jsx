@@ -139,7 +139,7 @@ export function AppSidebar({ ...props }) {
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
                   <span className='truncate font-semibold'>公海</span>
-                  <span className='truncate text-xs'>社交討論區</span>
+                  <span className='truncate text-xs'>交友討論區</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
